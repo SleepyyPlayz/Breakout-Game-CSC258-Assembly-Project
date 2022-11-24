@@ -74,7 +74,7 @@ draw_walls:
 		# Draw the top bar: a rectangle from (0,0) to (255, TOP_BAR_THICKNESS - 1)
 		# Calling function draw_rectangle(0, 0, 255, TOP_BAR_THICKNESS - 1, COLOR_WALLS):
 		addi $sp, $sp, -4
-		sw $ra, 0($sp)		# Preserve $ra first, then pass parameters!
+		sw $ra, 0($sp)			# Preserve $ra first, then pass parameters!
 
 		lw $a0, COLOR_WALLS
 
@@ -90,16 +90,16 @@ draw_walls:
 		addi $t1, $t1, -1
 		sw $t1, 12($sp)
 
-		jal draw_rectangle	# FUNCTION CALL
+		jal draw_rectangle		# FUNCTION CALL
 
 		lw $ra, 0($sp)
-		addi $sp, $sp, 4	# Restore $ra
+		addi $sp, $sp, 4		# Restore $ra
 		# Function call complete ----------------------------------------------
 		
 		# Draw the left side bar: a rectangle from (0, TOP_BAR_THICKNESS) to 
 		# (SIDE_WALL_THICKNESS - 1, 255), function call: ----------------------
 		addi $sp, $sp, -4
-		sw $ra, 0($sp)		# Preserve $ra first, then pass parameters!
+		sw $ra, 0($sp)			# Preserve $ra first, then pass parameters!
 
 		lw $a0, COLOR_WALLS
 
@@ -117,16 +117,16 @@ draw_walls:
 		li $t1, 255
 		sw $t1, 12($sp)
 
-		jal draw_rectangle
+		jal draw_rectangle		# FUNCTION CALL
 
 		lw $ra, 0($sp)
-		addi $sp, $sp, 4	# Restore $ra
+		addi $sp, $sp, 4		# Restore $ra
 		# Function call complete ----------------------------------------------
 		
 		# Draw the right side bar: a rectangle from (256 - SIDE_WALL_THICKNESS,
 		# TOP_BAR_THICKNESS) to (255, 255). Function call: --------------------
 		addi $sp, $sp, -4
-		sw $ra, 0($sp)		# Preserve $ra first, then pass parameters!
+		sw $ra, 0($sp)			# Preserve $ra first, then pass parameters!
 
 		lw $a0, COLOR_WALLS
 
@@ -144,10 +144,10 @@ draw_walls:
 		sw $t1, 8($sp)
 		sw $t1, 12($sp)
 
-		jal draw_rectangle
+		jal draw_rectangle		# FUNCTION CALL
 
 		lw $ra, 0($sp)
-		addi $sp, $sp, 4	# Restore $ra
+		addi $sp, $sp, 4		# Restore $ra
 		# Function call complete ----------------------------------------------
 
 	# EPILOGUE:
@@ -161,55 +161,56 @@ draw_walls:
 # parameters are passed through like so: 
 #		$a0 = color
 #		Stack: [ y_end, x_end, y_start, x_start <- ($sp)
-# This function will mutate t0, t1, t2, t3.
+# This function will mutate t0, t1, t2, t3, t9.
 draw_rectangle:
 	# PROLOGUE: takes the parameters from stack; reserves space for s0, s1, s2, s3
 		# Pop parameters from stack:
-		lw $t0, 0($sp)		# t0 = x_start
-		lw $t1, 4($sp)		# t1 = y_start
-		lw $t2, 8($sp)		# t2 = x_end
-		lw $t3, 12($sp)		# t3 = y_end
-		addi $sp, $sp, 16   # retract stack for 4 words
+		lw $t0, 0($sp)			# t0 = x_start
+		lw $t1, 4($sp)			# t1 = y_start
+		lw $t2, 8($sp)			# t2 = x_end
+		lw $t3, 12($sp)			# t3 = y_end
+		addi $sp, $sp, 16  	 	# retract stack for 4 words
 		# Back up s0, s1, s2, s3
-		addi $sp, $sp, -16  # extend the stack for 4 words
-		sw $s0, 0($sp)		# s0 -> sp
-		sw $s1, 4($sp)		# s1 -> sp + 4
-		sw $s2, 8($sp)		# s2 -> sp + 8
-		sw $s3, 12($sp)		# s3 -> sp + 12
+		addi $sp, $sp, -16  	# extend the stack for 4 words
+		sw $s0, 0($sp)			# s0 -> sp
+		sw $s1, 4($sp)			# s1 -> sp + 4
+		sw $s2, 8($sp)			# s2 -> sp + 8
+		sw $s3, 12($sp)			# s3 -> sp + 12
 	# BODY:
-		add $s0, $0, $t0	# s0 = x_start
-		add $s1, $0, $t1	# s1 = y_start
-		add $s2, $0, $t2	# s2 = x_end
-		add $s3, $0, $t3	# s3 = y_end
+		add $s0, $0, $t0		# s0 = x_start
+		add $s1, $0, $t1		# s1 = y_start
+		add $s2, $0, $t2		# s2 = x_end
+		add $s3, $0, $t3		# s3 = y_end
 
 		# Looping through [y_start, y_end], INCLUSIVE:
-		addi $t0, $s1, 0	# t0 = y_start
-		addi $t1, $s3, 1	# t1 = y_end + 1
+		addi $t0, $s1, 0		# t0 = y_start
+		addi $t1, $s3, 1		# t1 = y_end + 1
 	draw_rectangle_loop_y:
 		beq $t0, $t1, draw_rectangle_loop_y_end  # for t0 in [y_start, y_end]
 		
 		# Looping through [x_start, x_end], INCLUSIVE:
-		addi $t2, $s0, 0	# t2 = x_start
-		addi $t3, $s2, 1	# t3 = x_end + 1
+		addi $t2, $s0, 0		# t2 = x_start
+		addi $t3, $s2, 1		# t3 = x_end + 1
 	draw_rectangle_loop_x:
 		beq $t2, $t3, draw_rectangle_loop_x_end  # for t2 in [x_start, x_end]
 
 		# Setting the color at the address for (t2, t0) as "color":
 
 		# Calling function get_address_from_coords(t2, t0) --------------------
-		add $a0, $0, $t2	# load parameter a0 = t2
-		add $a1, $0, $t0	# load parameter a1 = t0
-
-		addi $sp, $sp, -4	# extend stack by 1
-		sw $ra, 0($sp)		# push $ra on stack (necessary backup)
+		addi $sp, $sp, -4		# extend stack by 1
+		sw $ra, 0($sp)			# Back up $ra
+		
+		add $a0, $0, $t2		# load parameter a0 = t2
+		add $a1, $0, $t0		# load parameter a1 = t0
 
 		jal get_address_from_coords  # FUNCTION CALL
 		
-		lw $ra, 0($sp)		# restore $ra
-		addi $sp, $sp, 4	# retract stack by 1
+		lw $ra, 0($sp)			# restore $ra
+		addi $sp, $sp, 4		# retract stack by 1
 		# Function call complete ----------------------------------------------
 
-		sw $a0, 0($v0)		# puts color in the current pixel address for (t2, t0)
+		lw $t9, COLOR_WALLS
+		sw $t9, 0($v0)			# puts color in the current pixel address for (t2, t0)
 		
 		addi $t2, $t2, 1
 		j draw_rectangle_loop_x
@@ -238,12 +239,12 @@ get_address_from_coords:
 	# PROLOGUE:
 		nop
 	# BODY:
-		sll $a0, $a0, 2		# a0 = a0 * 4 * 1 (a0 is now x * 4)
-		sll $a1, $a1, 10	# a1 = a1 * 4 * 256 (a1 is now y * 1024)
+		sll $a0, $a0, 2			# a0 = a0 * 4 * 1 (a0 is now x * 4)
+		sll $a1, $a1, 10		# a1 = a1 * 4 * 256 (a1 is now y * 1024)
 
-		lw $v0, ADDR_DSPL	# v0 = ADDR_DSPL[0]
-		add $v0, $v0, $a0	# v0 += a0 
-		add $v0, $v0, $a1	# v0 += a1 (v0 is now ADDR_DSPL[0] + (x * 4) + (y * 4 * 256))
+		lw $v0, ADDR_DSPL		# v0 = ADDR_DSPL[0]
+		add $v0, $v0, $a0		# v0 += a0 
+		add $v0, $v0, $a1		# v0 += a1 (v0 is now ADDR_DSPL[0] + (x * 4) + (y * 4 * 256))
 	# EPILOGUE:
 		jr $ra
 # =======================================================================================
