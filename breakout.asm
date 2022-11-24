@@ -40,6 +40,29 @@ TOP_BAR_THICKNESS:
 SIDE_WALL_THICKNESS:
 	.word 2
 
+# The amount of gap (unis) between the top bar and the top-most row of bricks
+TOP_GAP_THICKNESS:
+	.word 8
+
+# The thickness (in units) of a row of bricks
+BRICK_ROW_THICKNESS:
+	.word 2
+
+# The number of brick rows 
+BRICK_ROW_AMOUNT:
+	.word 7
+
+# An array containg the possible color that a row of bricks can have,
+# is cycled through when drawing the bricks row by row
+BRICK_COLORS:
+	.word 0x008062e0
+	.word 0x007173c6
+	.word 0x006283ac
+	.word 0x00539492
+	.word 0x0043a577
+	.word 0x0034b55d
+	.word 0x0025c643
+
 ##############################################################################
 # Mutable Data
 ##############################################################################
@@ -67,6 +90,19 @@ game_loop:
 
     #5. Go back to 1
     b game_loop
+
+
+# void draw_bricks();
+# Draws BRICK_ROW_AMOUNT rows of bricks. Each row is BRICK_ROW_THICKNESS units thick.
+# Color is hard-coded in here tho.
+draw_bricks:
+	# PROLOGUE:
+		...
+	# BODY:
+		...
+	# EPILOGUE:
+		...
+# =======================================================================================
 
 
 # void draw_walls();
