@@ -4,11 +4,16 @@
 # Student 1: Chris Wangzheng Jiang, 1008109574
 # Student 2: Yahya Elgabra, 
 ######################## Bitmap Display Configuration ########################
-# - Unit width in pixels:       1
-# - Unit height in pixels:      1
+# - Unit width in pixels:       4
+# - Unit height in pixels:      4
 # - Display width in pixels:    256
 # - Display height in pixels:   256
 # - Base Address for Display:   0x10008000 ($gp)
+# 
+# Note: I wanted to use units of 2, or even 1, but doing so led to memory leaks,
+# since the bitmap display was only allocated memory for around 8192 pixels 
+# before the addresses would overlap with existing data storage.
+# 
 ##############################################################################
 
 .data
@@ -27,13 +32,13 @@ ADDR_KBRD:
 COLOR_WALLS:
 	.word 0x00cccccc
 
-# The thickness (in pixels) of the top bar
+# The thickness (in units) of the top bar
 TOP_BAR_THICKNESS:
-	.word 32
-
-# The thickness (in pixels) of the side wall
-SIDE_WALL_THICKNESS:
 	.word 8
+
+# The thickness (in units) of the side wall
+SIDE_WALL_THICKNESS:
+	.word 2
 
 ##############################################################################
 # Mutable Data
@@ -71,8 +76,8 @@ draw_walls:
 	# PROLOGUE:
 		nop
 	# BODY:
-		# Draw the top bar: a rectangle from (0,0) to (255, TOP_BAR_THICKNESS - 1)
-		# Calling function draw_rectangle(0, 0, 255, TOP_BAR_THICKNESS - 1, COLOR_WALLS):
+		# Draw the top bar: a rectangle from (0,0) to (63, TOP_BAR_THICKNESS - 1)
+		# Function call: ------------------------------------------------------
 		addi $sp, $sp, -4
 		sw $ra, 0($sp)			# Preserve $ra first, then pass parameters!
 
@@ -83,7 +88,7 @@ draw_walls:
 		sw $0, 0($sp)
 		sw $0, 4($sp)
 
-		li $t1, 255
+		li $t1, 63
 		sw $t1, 8($sp)
 
 		lw $t1, TOP_BAR_THICKNESS
@@ -97,7 +102,7 @@ draw_walls:
 		# Function call complete ----------------------------------------------
 		
 		# Draw the left side bar: a rectangle from (0, TOP_BAR_THICKNESS) to 
-		# (SIDE_WALL_THICKNESS - 1, 255), function call: ----------------------
+		# (SIDE_WALL_THICKNESS - 1, 63), function call: ----------------------
 		addi $sp, $sp, -4
 		sw $ra, 0($sp)			# Preserve $ra first, then pass parameters!
 
@@ -114,7 +119,7 @@ draw_walls:
 		addi $t1, $t1, -1
 		sw $t1, 8($sp)
 
-		li $t1, 255
+		li $t1, 63
 		sw $t1, 12($sp)
 
 		jal draw_rectangle		# FUNCTION CALL
@@ -123,8 +128,8 @@ draw_walls:
 		addi $sp, $sp, 4		# Restore $ra
 		# Function call complete ----------------------------------------------
 		
-		# Draw the right side bar: a rectangle from (256 - SIDE_WALL_THICKNESS,
-		# TOP_BAR_THICKNESS) to (255, 255). Function call: --------------------
+		# Draw the right side bar: a rectangle from (64 - SIDE_WALL_THICKNESS,
+		# TOP_BAR_THICKNESS) to (63, 63). Function call: --------------------
 		addi $sp, $sp, -4
 		sw $ra, 0($sp)			# Preserve $ra first, then pass parameters!
 
@@ -133,14 +138,14 @@ draw_walls:
 		addi $sp, $sp, -16
 
 		lw $t1, SIDE_WALL_THICKNESS
-		li $t2, 256
+		li $t2, 64
 		sub $t1, $t2, $t1
 		sw $t1, 0($sp)
 
 		lw $t1, TOP_BAR_THICKNESS
 		sw $t1, 4($sp)
 
-		li $t1, 255
+		li $t1, 63
 		sw $t1, 8($sp)
 		sw $t1, 12($sp)
 
@@ -234,17 +239,17 @@ draw_rectangle:
 # Returns the address in memory for the pixel at position (x,y). 
 #		Parameters: $a0 = x, $a1 = y
 #		Result: $v0 = addr(x,y)
-# This function mutates no registers of importance.
+# This function mutates no registers of importance (only a0, a1, v0).
 get_address_from_coords:
 	# PROLOGUE:
 		nop
 	# BODY:
 		sll $a0, $a0, 2			# a0 = a0 * 4 * 1 (a0 is now x * 4)
-		sll $a1, $a1, 10		# a1 = a1 * 4 * 256 (a1 is now y * 1024)
+		sll $a1, $a1, 8			# a1 = a1 * 4 * 64 (a1 is now y * 256)
 
 		lw $v0, ADDR_DSPL		# v0 = ADDR_DSPL[0]
 		add $v0, $v0, $a0		# v0 += a0 
-		add $v0, $v0, $a1		# v0 += a1 (v0 is now ADDR_DSPL[0] + (x * 4) + (y * 4 * 256))
+		add $v0, $v0, $a1		# v0 += a1 (v0 is now ADDR_DSPL[0] + (x*4) + (y*4*64))
 	# EPILOGUE:
 		jr $ra
 # =======================================================================================
