@@ -115,7 +115,7 @@ draw_bricks:
 		# Draw a rectangle from:
 		# (SIDE_WALL_TKNSS, TOP_BAR_TKNSS + TOP_GAP_TKNSS + t1*BRICK_ROW_TKNSS) 
 		# to 
-		# (63 - SIDE_WALL_TKNSS, TOP_BAR_TKNSS+TOP_GAP_TKNSS + (t1+1)*BRICK_ROW_TKNSS - 1)
+		# (63 - SIDE_WALL_TKNSS, TOP_BAR_TKNSS + TOP_GAP_TKNSS + (t1+1)*BRICK_ROW_TKNSS - 1)
 		# with color
 		# BRICK_COLORS[t1] (the value at BRICK_COLORS + (4*t1))
 		# Function call: ------------------------------------------------------
@@ -123,20 +123,58 @@ draw_bricks:
 		# Preserve variables on stack: $ra, t0, t1, t2 
 		# (since they will be altered by draw_rectangle)
 		addi $sp, $sp, -16
-		sw $ra, 0($sp) 
-		sw $t0, 0($sp)
-		sw $t1, 0($sp)
-		sw $t2, 0($sp)
+		sw $ra, 0($sp)
+		sw $t0, 4($sp)
+		sw $t1, 8($sp)
+		sw $t2, 12($sp)
 
 		# Passing the parameters: (color)
-		sll $t9, $t1, 2		# t9 = t1 * 4
-		add $t0, $t0, $t1	# t0 = address which is BRICK_COLORS + (t1 * 4)
-		lw $t9, 0($t0)		# t9 = BRICK_COLORS[t1]
-		add $a0, $0, $t9	# a0 = t9 = BRICK_COLORS[t1]
+		sll $t9, $t1, 2			# t9 = t1 * 4
+		add $t0, $t0, $t1		# t0 = address which is BRICK_COLORS + (t1 * 4)
+		lw $t9, 0($t0)			# t9 = BRICK_COLORS[t1]
+		add $a0, $0, $t9		# a0 = t9 = BRICK_COLORS[t1]
 	
 		# Passing the parameters: (coordinates)
 		addi $sp, $sp, -16
-		...
+		
+		lw $t9, SIDE_WALL_THICKNESS
+		sw $t9, 0($sp)
+
+		lw $t9, BRICK_ROW_THICKNESS
+		mult $t9, $t1			# t1 * BRICK_ROW_THICKNESS
+		mflo $t9				# t9 = t1 * BRICK_ROW_THICKNESS
+		lw $t0, TOP_GAP_THICKNESS
+		add $t9, $t9, $t0
+		lw $t0, TOP_BAR_THICKNESS
+		add $t9, $t9, $t0
+		sw $t9, 4($sp)
+
+		li $t9, 63
+		lw $t0, SIDE_WALL_THICKNESS
+		sub $t9, $t9, $t0
+		sw $t9, 8($sp)
+
+		move $t9, $t1			# t9 = t1
+		addi $t9, $t9, 1		# t9 = t1 + 1
+		lw $t0, BRICK_ROW_THICKNESS
+		mult $t9, $t0			# (t1 + 1) * BRICK_ROW_THICKNESS
+		mflo $t9
+		lw $t0, TOP_GAP_THICKNESS
+		add $t9, $t9, $t0
+		lw $t0, TOP_BAR_THICKNESS
+		add $t9, $t9, $t0
+		addi $t9, $t9, -1
+		sw $t9, 12($sp)
+		
+		jal draw_rectangle		# FUNCTION CALL
+
+		# Restore variables from stack: $ra, t0, t1, t2 
+		lw $ra, 0($sp)
+		lw $t0, 4($sp)
+		lw $t1, 8($sp)
+		lw $t2, 12($sp)
+		addi $sp, $sp, 16
+		# Function call complete ----------------------------------------------
 
 		addi $t1, $t1, 1
 		j draw_bricks_loop
