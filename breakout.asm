@@ -75,10 +75,14 @@ BRICK_COLORS:
 
 main:
     # Initializing the game: 
-	# Step 1: drawing the top bar and 2 side walls in the game
+	# Step 1: Draw the top bar and 2 side walls in the game
 		jal draw_walls  # draw_walls() : draw the walls (and top bar) of the game
-	# Step 2: 
-    
+	# Step 2: Draw the bricks (a few colored rows)
+		jal draw_bricks
+    # Step 3: Draw the paddle in the initial position
+
+	# Step 4: Draw the ball in the initial position
+	
 
 game_loop:
 	# 1a. Check if key has been pressed
@@ -94,14 +98,51 @@ game_loop:
 
 # void draw_bricks();
 # Draws BRICK_ROW_AMOUNT rows of bricks. Each row is BRICK_ROW_THICKNESS units thick.
-# Color is hard-coded in here tho.
+# Color is stored in the BRICK_COLORS[7] array.
+# This function uses t0, t1, t2, t9.
 draw_bricks:
 	# PROLOGUE:
-		...
+		nop
 	# BODY:
+		la $t0, BRICK_COLORS	# t0 = base address of BRICK_COLORS[7] array
+
+		# Loop BRICK ROW_AMOUNT times for drawing the rows of bricks
+		li $t1, 0
+		lw $t2, BRICK_ROW_AMOUNT
+	draw_bricks_loop:
+		beq $t1, $t2, draw_bricks_loop_end
+
+		# Draw a rectangle from:
+		# (SIDE_WALL_TKNSS, TOP_BAR_TKNSS + TOP_GAP_TKNSS + t1*BRICK_ROW_TKNSS) 
+		# to 
+		# (63 - SIDE_WALL_TKNSS, TOP_BAR_TKNSS+TOP_GAP_TKNSS + (t1+1)*BRICK_ROW_TKNSS - 1)
+		# with color
+		# BRICK_COLORS[t1] (the value at BRICK_COLORS + (4*t1))
+		# Function call: ------------------------------------------------------
+		
+		# Preserve variables on stack: $ra, t0, t1, t2 
+		# (since they will be altered by draw_rectangle)
+		addi $sp, $sp, -16
+		sw $ra, 0($sp) 
+		sw $t0, 0($sp)
+		sw $t1, 0($sp)
+		sw $t2, 0($sp)
+
+		# Passing the parameters: (color)
+		sll $t9, $t1, 2		# t9 = t1 * 4
+		add $t0, $t0, $t1	# t0 = address which is BRICK_COLORS + (t1 * 4)
+		lw $t9, 0($t0)		# t9 = BRICK_COLORS[t1]
+		add $a0, $0, $t9	# a0 = t9 = BRICK_COLORS[t1]
+	
+		# Passing the parameters: (coordinates)
+		addi $sp, $sp, -16
 		...
+
+		addi $t1, $t1, 1
+		j draw_bricks_loop
+	draw_bricks_loop_end:
 	# EPILOGUE:
-		...
+		jr $ra
 # =======================================================================================
 
 
