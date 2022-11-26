@@ -71,9 +71,9 @@ PADDLE_Y:
 # X position of the paddle, this is dynamic, 2 variables helps with
 # collision detection, this also means the length of the paddle is adjustable
 PADDLE_X_LEFT:
-	.word 28
+	.word 26
 PADDLE_X_RIGHT:
-	.word 35
+	.word 36
 
 # The position of the ball (1 unit by 1 unit)
 BALL_X:
