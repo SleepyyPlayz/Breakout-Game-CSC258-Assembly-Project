@@ -63,6 +63,24 @@ BRICK_COLORS:
 	.word 0x0034b55d
 	.word 0x0025c643
 
+# Y position of the paddle , this is constant
+# (the paddle is 1 unit thick)
+PADDLE_Y:
+	.word 61
+
+# X position of the paddle, this is dynamic, 2 variables helps with
+# collision detection, this also means the length of the paddle is adjustable
+PADDLE_X_LEFT:
+	.word 28
+PADDLE_X_RIGHT:
+	.word 35
+
+# The position of the ball (1 unit by 1 unit)
+BALL_X:
+	.word 31
+BALL_Y:
+	.word 58
+
 ##############################################################################
 # Mutable Data
 ##############################################################################
@@ -80,7 +98,7 @@ main:
 	# Step 2: Draw the bricks (a few colored rows)
 		jal draw_bricks
     # Step 3: Draw the paddle in the initial position
-
+		jal draw_paddle
 	# Step 4: Draw the ball in the initial position
 	
 	# Testing Section:
@@ -96,6 +114,48 @@ game_loop:
 
     #5. Go back to 1
     b game_loop
+
+
+# void draw_paddle();
+# Draws the paddle at it's position. 
+# The y-level of the paddle is constant, at PADDLE_Y.
+# The x-position of the paddle is stored in PADDLE_X_LEFT and PADDLE_X_RIGHT.
+# Note: PADDLE_Y is a constant. PADDLE_X_LEFT and PADDLE_X_RIGHT are dynamic.
+# This also means that the length and the y-level of the paddle is adjustable.
+# Also Note: Paddle's color is hardcoded to 0x00ffffff, same as the ball.
+# 
+# This function uses 
+draw_paddle:
+	# PROLOGUE:
+		nop
+	# BODY:
+		# Draw a line from (PADDLE_X_LEFT, PADDLE_Y) to (PADDLE_X_RIGHT, PADDLE_Y)
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)			# preserve $ra
+
+		li $a0, 0x00ffffff
+		
+		addi $sp, $sp, -16
+
+		lw $t9, PADDLE_Y
+		sw $t9, 4($sp)
+		sw $t9, 12($sp)
+
+		lw $t9, PADDLE_X_LEFT
+		sw $t9, 0($sp)
+
+		lw $t9, PADDLE_X_RIGHT
+		sw $t9, 8($sp)
+
+		jal draw_rectangle		# FUNCTION CALL
+
+		lw $ra, 0($sp)
+		addi $sp, $sp, 4		# restore $ra
+		# Function call complete ----------------------------------------------
+	# EPILOGUE:
+		jr $ra
+# =======================================================================================
 
 
 # void draw_bricks();
@@ -114,9 +174,9 @@ draw_bricks:
 		beq $t1, $t2, draw_bricks_loop_end
 
 		# Draw a rectangle from:
-		# (SIDE_WALL_TKNSS, TOP_BAR_TKNSS + TOP_GAP_TKNSS + t1*BRICK_ROW_TKNSS) 
+		# (SIDE_WALL_TKNS, TOP_BAR_TKNS + TOP_GAP_TKNS + t1 * BRICK_ROW_TKNS) 
 		# to 
-		# (63 - SIDE_WALL_TKNSS, TOP_BAR_TKNSS + TOP_GAP_TKNSS + (t1+1)*BRICK_ROW_TKNSS - 1)
+		# (63 - SIDE_WALL_TKNS, TOP_BAR_TKNS + TOP_GAP_TKNS + (t1+1) * BRICK_ROW_TKNS - 1)
 		# with color
 		# BRICK_COLORS[t1] (the value at BRICK_COLORS + (4*t1))
 		# Function call: ------------------------------------------------------
@@ -277,6 +337,9 @@ draw_walls:
 # void draw_rectangle(int x_start, int y_start, int x_end, int y_end, Color color); 
 # Draws a rectangle from (x_start, y_start) to (x_end, y_end), INCLUSIVE.
 # (Can also be used to draw lines, just sayin')
+#
+# Parameter preconditions: 0 <= x_start <= x_end <= 63 ; 0 <= y_start <= y_end <= 63
+# 
 # parameters are passed through like so: 
 #		$a0 = color
 #		Stack: [ y_end, x_end, y_start, x_start <- ($sp)
