@@ -100,8 +100,7 @@ main:
     # Step 3: Draw the paddle in the initial position
 		jal draw_paddle
 	# Step 4: Draw the ball in the initial position
-	
-	# Testing Section:
+		jal draw_ball
 	
 
 game_loop:
@@ -116,6 +115,35 @@ game_loop:
     b game_loop
 
 
+# void draw_ball();
+# Draws the ball (1 unit by 1 unit) at (BALL_X, BALL_Y).
+# No draw_rectangle call needed. Ball's color is 0x00ffffff.
+# This function uses t9.
+draw_ball:
+	# PROLOGUE:
+		nop
+	# BODY:
+		# Get the address of (BALL_X, BALL_Y) using get_address_from_coords
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		lw $a0, BALL_X
+		lw $a1, BALL_Y
+
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+
+		li $t9, 0x00ffffff
+		sw $t9, 0($v0)
+	# EPILOGUE:
+		jr $ra
+# =======================================================================================
+
+
 # void draw_paddle();
 # Draws the paddle at it's position. 
 # The y-level of the paddle is constant, at PADDLE_Y.
@@ -124,7 +152,7 @@ game_loop:
 # This also means that the length and the y-level of the paddle is adjustable.
 # Also Note: Paddle's color is hardcoded to 0x00ffffff, same as the ball.
 # 
-# This function uses 
+# This function uses t9.
 draw_paddle:
 	# PROLOGUE:
 		nop
