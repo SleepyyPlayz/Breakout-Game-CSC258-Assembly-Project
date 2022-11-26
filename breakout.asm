@@ -30,7 +30,7 @@ ADDR_KBRD:
 
 # The color of the walls (and top bar)
 COLOR_WALLS:
-	.word 0x00cccccc
+	.word 0x00888888
 
 # The thickness (in units) of the top bar
 TOP_BAR_THICKNESS:
@@ -83,6 +83,8 @@ main:
 
 	# Step 4: Draw the ball in the initial position
 	
+	# Testing Section:
+	
 
 game_loop:
 	# 1a. Check if key has been pressed
@@ -104,9 +106,8 @@ draw_bricks:
 	# PROLOGUE:
 		nop
 	# BODY:
-		la $t0, BRICK_COLORS	# t0 = base address of BRICK_COLORS[7] array
-
 		# Loop BRICK ROW_AMOUNT times for drawing the rows of bricks
+		la $t0, BRICK_COLORS	# t0 = base address of BRICK_COLORS[7] array
 		li $t1, 0
 		lw $t2, BRICK_ROW_AMOUNT
 	draw_bricks_loop:
@@ -129,10 +130,7 @@ draw_bricks:
 		sw $t2, 12($sp)
 
 		# Passing the parameters: (color)
-		sll $t9, $t1, 2			# t9 = t1 * 4
-		add $t0, $t0, $t1		# t0 = address which is BRICK_COLORS + (t1 * 4)
-		lw $t9, 0($t0)			# t9 = BRICK_COLORS[t1]
-		add $a0, $0, $t9		# a0 = t9 = BRICK_COLORS[t1]
+		lw $a0, 0($t0)			# a0 = BRICK_COLORS[t1]
 	
 		# Passing the parameters: (coordinates)
 		addi $sp, $sp, -16
@@ -176,6 +174,7 @@ draw_bricks:
 		addi $sp, $sp, 16
 		# Function call complete ----------------------------------------------
 
+		addi $t0, $t0, 4
 		addi $t1, $t1, 1
 		j draw_bricks_loop
 	draw_bricks_loop_end:
@@ -317,8 +316,10 @@ draw_rectangle:
 		# Setting the color at the address for (t2, t0) as "color":
 
 		# Calling function get_address_from_coords(t2, t0) --------------------
-		addi $sp, $sp, -4		# extend stack by 1
+		# Preserve $ra, a0
+		addi $sp, $sp, -8		# extend stack by 2
 		sw $ra, 0($sp)			# Back up $ra
+		sw $a0, 4($sp)			# Back up $a0 (the color)
 		
 		add $a0, $0, $t2		# load parameter a0 = t2
 		add $a1, $0, $t0		# load parameter a1 = t0
@@ -326,11 +327,11 @@ draw_rectangle:
 		jal get_address_from_coords  # FUNCTION CALL
 		
 		lw $ra, 0($sp)			# restore $ra
-		addi $sp, $sp, 4		# retract stack by 1
+		lw $a0, 4($sp)			# restore $a0 (the color)
+		addi $sp, $sp, 8		# retract stack by 2
 		# Function call complete ----------------------------------------------
 
-		lw $t9, COLOR_WALLS
-		sw $t9, 0($v0)			# puts color in the current pixel address for (t2, t0)
+		sw $a0, 0($v0)			# puts color in the current pixel address for (t2, t0)
 		
 		addi $t2, $t2, 1
 		j draw_rectangle_loop_x
