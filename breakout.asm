@@ -75,10 +75,10 @@ PADDLE_X_LEFT:
 PADDLE_X_RIGHT:
 	.word 36
 
-# The position of the ball (1 unit by 1 unit)
+# The position of the ball (1 unit by 1 unit). Initial value is initial position.
 BALL_X:
 	.word 31
-BALL_Y:
+BALL_Y: 
 	.word 58
 
 ##############################################################################
@@ -104,20 +104,51 @@ main:
 	
 
 game_loop:
-	# 1a. Check if key has been pressed
-    # 1b. Check which key has been pressed
-    # 2a. Check for collisions
+	# 1. Check if key has been pressed & which one has been pressed
+		lw $t0, ADDR_KBRD			# t0 = address of the keyboard
+		lw $t9, 0($t0)				# bool t9 = keyboard.isPressed();
+		beq $t9, 1, keyboard_input  # if (t9 == 1): goto keyboard_input
+		j no_keyboard_input			# else: goto no_keyboard_input
+
+	keyboard_input:					# keyboard input detected
+		lw $t9, 4($t0)				# t9 = ASCII(keyboard.keyPressed());
+
+		beq $t9, 113, respond_to_q	# key is q: quit
+		beq $t9, 97, respond_to_a	# key is a: move paddle left by 1 unit
+		beq $t9, 100, respond_to_d	# key is d: move paddle right by 1 unit
+		j end_key_responding		# key is invalid, continue as usual
+		
+		respond_to_q:  # Quit game
+			li $v0, 10              
+			syscall
+		respond_to_a:  # Move paddle left by 1 unit
+			# ...
+			j end_key_responding
+		respond_to_d:  # Move paddle right by 1 unit
+			# ...
+			j end_key_responding
+		end_key_responding:
+			nop
+	no_keyboard_input:				# no key pressed, continue as usual
+    
+	# 2a. Check for collisions
 	# 2b. Update locations (paddle, ball)
-	# 3. Draw the screen
+	# 3. Draw the screen (don't have to redraw the entire screen for sure)
+
 	# 4. Sleep
+		li $v0, 32
+		li $a0, 20
+		syscall
 
     #5. Go back to 1
     b game_loop
 
 
 # void draw_ball();
+# 
 # Draws the ball (1 unit by 1 unit) at (BALL_X, BALL_Y).
 # No draw_rectangle call needed. Ball's color is 0x00ffffff.
+# 
 # This function uses t9.
 draw_ball:
 	# PROLOGUE:
@@ -145,6 +176,7 @@ draw_ball:
 
 
 # void draw_paddle();
+# 
 # Draws the paddle at it's position. 
 # The y-level of the paddle is constant, at PADDLE_Y.
 # The x-position of the paddle is stored in PADDLE_X_LEFT and PADDLE_X_RIGHT.
@@ -187,8 +219,10 @@ draw_paddle:
 
 
 # void draw_bricks();
+# 
 # Draws BRICK_ROW_AMOUNT rows of bricks. Each row is BRICK_ROW_THICKNESS units thick.
 # Color is stored in the BRICK_COLORS[7] array.
+# 
 # This function uses t0, t1, t2, t9.
 draw_bricks:
 	# PROLOGUE:
@@ -272,8 +306,11 @@ draw_bricks:
 
 
 # void draw_walls();
+# 
 # Draws the 2 side walls, and the top bar of the game.
 # No parameters, uses global variables: COLOR_WALLS, TOP_BAR_THICKNESS, SIDE_WALL_THICKNESS
+# 
+# This function uses t1, t2.
 draw_walls:
 	# PROLOGUE:
 		nop
@@ -363,6 +400,7 @@ draw_walls:
 
 
 # void draw_rectangle(int x_start, int y_start, int x_end, int y_end, Color color); 
+# 
 # Draws a rectangle from (x_start, y_start) to (x_end, y_end), INCLUSIVE.
 # (Can also be used to draw lines, just sayin')
 #
@@ -371,6 +409,7 @@ draw_walls:
 # parameters are passed through like so: 
 #		$a0 = color
 #		Stack: [ y_end, x_end, y_start, x_start <- ($sp)
+# 
 # This function will mutate t0, t1, t2, t3, t9.
 draw_rectangle:
 	# PROLOGUE: takes the parameters from stack; reserves space for s0, s1, s2, s3
@@ -443,9 +482,11 @@ draw_rectangle:
 
 
 # Address get_address_from_coords(int x, int y);
+# 
 # Returns the address in memory for the pixel at position (x,y). 
 #		Parameters: $a0 = x, $a1 = y
 #		Result: $v0 = addr(x,y)
+# 
 # This function mutates no registers of importance (only a0, a1, v0).
 get_address_from_coords:
 	# PROLOGUE:
