@@ -76,6 +76,7 @@ PADDLE_X_RIGHT:
 	.word 36
 
 # The position of the ball (1 unit by 1 unit). Initial value is initial position.
+# These 2 variables are dynamic.
 BALL_X:
 	.word 31
 BALL_Y: 
@@ -119,21 +120,26 @@ game_loop:
 		j end_key_responding		# key is invalid, continue as usual
 		
 		respond_to_q:  # Quit game
-			li $v0, 10              
+			li $v0, 10
 			syscall
-		respond_to_a:  # Move paddle left by 1 unit
+		respond_to_a:  # Move paddle left by 1 unit (if not at leftmost edge)
 			# ...
 			j end_key_responding
-		respond_to_d:  # Move paddle right by 1 unit
+		respond_to_d:  # Move paddle right by 1 unit (if not at rightmost edge)
 			# ...
 			j end_key_responding
 		end_key_responding:
 			nop
 	no_keyboard_input:				# no key pressed, continue as usual
     
-	# 2a. Check for collisions
-	# 2b. Update locations (paddle, ball)
-	# 3. Draw the screen (don't have to redraw the entire screen for sure)
+	# 2a. Check for collisions (of ball), if bump into brick, delete brick
+	
+		
+
+	# 2b. Update locations (ball)
+		
+		
+	# 3. Draw the screen (misc updates)
 
 	# 4. Sleep
 		li $v0, 32
@@ -142,6 +148,140 @@ game_loop:
 
     #5. Go back to 1
     b game_loop
+
+
+# void move_paddle_left();
+#
+# If the paddle hasn't reached the left-most possible position, move the paddle left
+# by 1 unit. (including actually drawing)
+# 
+# This function uses
+move_paddle_left:
+	# PROLOGUE
+		nop
+	# BODY
+		# check if the paddle is touching the left wall, if so, terminate
+		lw $t0, SIDE_WALL_THICKNESS
+		lw $t1, PADDLE_X_LEFT
+		beq $t0, $t1, move_paddle_left_end
+
+		# Move the paddle to the left by 1 unit:
+
+		# Change the coords first:
+		la $t0, PADDLE_X_LEFT
+		addi $t1, $t1, -1		# t1 = PADDLE_X_LEFT - 1
+		sw $t1, 0($t0)			# PADDLE_X_LEFT = t1
+		
+		la $t0, PADDLE_X_RIGHT
+		lw $t1, PADDLE_X_RIGHT
+		addi $t1, $t1, -1		# t1 = PADDLE_X_RIGHT - 1
+		sw $t1, 0($t0)			# PADDLE_X_RIGHT = t1
+
+		# Then change the pixels:
+		# First, get the address of (PADDLE_X_LEFT, PADDLE_Y) with get_address_from_coords
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		lw $a0, PADDLE_X_LEFT
+		lw $a1, PADDLE_Y
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+		li $t9, 0x00ffffff
+		sw $t9, 0($v0)			# Draw the left pixel
+
+		# Then, get the address of (PADDLE_X_RIGHT + 1, PADDLE_Y)
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		lw $a0, PADDLE_X_RIGHT
+		addi $a0, $a0, 1
+		lw $a1, PADDLE_Y
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+		li $t9, 0x00000000
+		sw $t9, 0($v0)			# Erase the right pixel
+		
+	move_paddle_left_end:
+	# EPILOGUE
+		jr $ra
+# =======================================================================================
+
+
+# void move_paddle_right();
+#
+# If the paddle hasn't reached the right-most possible position, move the paddle right
+# by 1 unit. (including actually drawing)
+# 
+# This function uses
+move_paddle_right:
+	# PROLOGUE
+		nop
+	# BODY
+		# check if the paddle is touching the right wall, if so, terminate
+		lw $t0, SIDE_WALL_THICKNESS
+		li $t1, 63
+		sub $t0, $t1, $t0		# t0 = 63 - SIDE_WALL_THICKNESS
+		lw $t1, PADDLE_X_RIGHT	# t1 = PADDLE_X_RIGHT
+		beq $t0, $t1, move_paddle_right_end
+
+		# Move the paddle to the right by 1 unit:
+
+		# Change the coords first:		
+		la $t0, PADDLE_X_RIGHT
+		addi $t1, $t1, 1		# t1 = PADDLE_X_RIGHT + 1
+		sw $t1, 0($t0)			# PADDLE_X_RIGHT = t1
+
+		la $t0, PADDLE_X_LEFT
+		lw $t1, PADDLE_X_LEFT
+		addi $t1, $t1, 1		# t1 = PADDLE_X_LEFT + 1
+		sw $t1, 0($t0)			# PADDLE_X_LEFT = t1
+
+		# Then change the pixels:
+		# First, get the address of (PADDLE_X_RIGHT, PADDLE_Y) with get_address_from_coords
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		lw $a0, PADDLE_X_RIGHT
+		lw $a1, PADDLE_Y
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+		li $t9, 0x00ffffff
+		sw $t9, 0($v0)			# Draw the right pixel
+
+		# Then, get the address of (PADDLE_X_LEFT - 1, PADDLE_Y)
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		lw $a0, PADDLE_X_LEFT
+		addi $a0, $a0, -1
+		lw $a1, PADDLE_Y
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+		li $t9, 0x00000000
+		sw $t9, 0($v0)			# Erase the left pixel
+
+	move_paddle_right_end:
+	# EPILOGUE
+		jr $ra
+# =======================================================================================
+
+
 
 
 # void draw_ball();
