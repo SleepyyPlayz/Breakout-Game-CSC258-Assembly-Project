@@ -132,9 +132,9 @@ game_loop:
 			nop
 	no_keyboard_input:				# no key pressed, continue as usual
     
-	# 2a. Check for collisions (of ball), if bump into brick, delete brick
+	# 2a. Check for collisions (of ball), and, if bump into brick, delete brick
 	
-		
+		# (adjust directional vectors of ball if ball touches edges)
 
 	# 2b. Update locations (ball)
 		
