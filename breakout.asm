@@ -123,18 +123,18 @@ game_loop:
 			li $v0, 10
 			syscall
 		respond_to_a:  # Move paddle left by 1 unit (if not at leftmost edge)
-			# ...
+			jal move_paddle_left
 			j end_key_responding
 		respond_to_d:  # Move paddle right by 1 unit (if not at rightmost edge)
-			# ...
+			jal move_paddle_right
 			j end_key_responding
 		end_key_responding:
 			nop
 	no_keyboard_input:				# no key pressed, continue as usual
     
-	# 2a. Check for collisions (of ball), if bump into brick, delete brick
+	# 2a. Check for collisions (of ball), and, if bump into brick, delete brick
 	
-		
+		# (adjust directional vectors of ball if ball touches edges)
 
 	# 2b. Update locations (ball)
 		
@@ -143,7 +143,7 @@ game_loop:
 
 	# 4. Sleep
 		li $v0, 32
-		li $a0, 20
+		li $a0, 5
 		syscall
 
     #5. Go back to 1
@@ -155,7 +155,7 @@ game_loop:
 # If the paddle hasn't reached the left-most possible position, move the paddle left
 # by 1 unit. (including actually drawing)
 # 
-# This function uses
+# This function uses t0, t1, t9.
 move_paddle_left:
 	# PROLOGUE
 		nop
@@ -220,7 +220,7 @@ move_paddle_left:
 # If the paddle hasn't reached the right-most possible position, move the paddle right
 # by 1 unit. (including actually drawing)
 # 
-# This function uses
+# This function uses t0, t1, t9.
 move_paddle_right:
 	# PROLOGUE
 		nop
