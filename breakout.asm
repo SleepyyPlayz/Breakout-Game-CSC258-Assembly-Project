@@ -2,7 +2,7 @@
 # This file contains our implementation of Breakout.
 #
 # Student 1: Chris Wangzheng Jiang, 1008109574
-# Student 2: Yahya Elgabra, 
+# Student 2: Yahya Elgabra, 108553030
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       4
 # - Unit height in pixels:      4
@@ -74,13 +74,25 @@ PADDLE_X_LEFT:
 	.word 26
 PADDLE_X_RIGHT:
 	.word 36
+	
+# Y position of the second paddle , this is constant
+# (the paddle is 1 unit thick)
+PADDLE_2_Y:
+	.word 59
+
+# X position of the second paddle, this is dynamic, 2 variables helps with
+# collision detection, this also means the length of the paddle is adjustable
+PADDLE_2_X_LEFT:
+	.word 26
+PADDLE_2_X_RIGHT:
+	.word 36
 
 # The position of the ball (1 unit by 1 unit). Initial value is initial position.
 # These 2 variables are dynamic.
 BALL_X:
 	.word 31
 BALL_Y: 
-	.word 58
+	.word 57
 
 ##############################################################################
 # Mutable Data
@@ -100,6 +112,7 @@ main:
 		jal draw_bricks
     # Step 3: Draw the paddle in the initial position
 		jal draw_paddle
+		jal draw_paddle_2
 	# Step 4: Draw the ball in the initial position
 		jal draw_ball
 	
@@ -113,10 +126,13 @@ game_loop:
 
 	keyboard_input:					# keyboard input detected
 		lw $t9, 4($t0)				# t9 = ASCII(keyboard.keyPressed());
-
+		
 		beq $t9, 113, respond_to_q	# key is q: quit
 		beq $t9, 97, respond_to_a	# key is a: move paddle left by 1 unit
 		beq $t9, 100, respond_to_d	# key is d: move paddle right by 1 unit
+		beq $t9, 44, respond_to_comma	# key is ,: move paddle_2 left by 1 unit
+		beq $t9, 46, respond_to_period	# key is .: move paddle_2 right by 1 unit
+		#beq $t9, 112, respond_to_p	# key is p: pause game
 		j end_key_responding		# key is invalid, continue as usual
 		
 		respond_to_q:  # Quit game
@@ -127,6 +143,12 @@ game_loop:
 			j end_key_responding
 		respond_to_d:  # Move paddle right by 1 unit (if not at rightmost edge)
 			jal move_paddle_right
+			j end_key_responding
+		respond_to_comma:  # Move paddle_2 left by 1 unit (if not at leftmost edge)
+			jal move_paddle_2_left
+			j end_key_responding
+		respond_to_period:  # Move paddle_2 right by 1 unit (if not at rightmost edge)
+			jal move_paddle_2_right
 			j end_key_responding
 		end_key_responding:
 			nop
@@ -142,6 +164,11 @@ game_loop:
 	# 3. Draw the screen (misc updates)
 
 	# 4. Sleep
+		# eMARS stuff
+		lw   $t8, ADDR_DSPL
+		li   $t9, 1
+		sb   $t9, 0($t8)
+		
 		li $v0, 32
 		li $a0, 5
 		syscall
@@ -279,6 +306,136 @@ move_paddle_right:
 	move_paddle_right_end:
 	# EPILOGUE
 		jr $ra
+
+# void move_paddle_2_left();
+#
+# If the second paddle hasn't reached the left-most possible position, move the paddle left
+# by 1 unit. (including actually drawing)
+# 
+# This function uses t0, t1, t9.
+move_paddle_2_left:
+	# PROLOGUE
+		nop
+	# BODY
+		# check if the paddle is touching the left wall, if so, terminate
+		lw $t0, SIDE_WALL_THICKNESS
+		lw $t1, PADDLE_2_X_LEFT
+		beq $t0, $t1, move_paddle_2_left_end
+
+		# Move the paddle to the left by 1 unit:
+
+		# Change the coords first:
+		la $t0, PADDLE_2_X_LEFT
+		addi $t1, $t1, -1		# t1 = PADDLE_2_X_LEFT - 1
+		sw $t1, 0($t0)			# PADDLE_2_X_LEFT = t1
+		
+		la $t0, PADDLE_2_X_RIGHT
+		lw $t1, PADDLE_2_X_RIGHT
+		addi $t1, $t1, -1		# t1 = PADDLE_2_X_RIGHT - 1
+		sw $t1, 0($t0)			# PADDLE_2_X_RIGHT = t1
+
+		# Then change the pixels:
+		# First, get the address of (PADDLE_2_X_LEFT, PADDLE_2_Y) with get_address_from_coords
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		lw $a0, PADDLE_2_X_LEFT
+		lw $a1, PADDLE_2_Y
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+		li $t9, 0x00ffffff
+		sw $t9, 0($v0)			# Draw the left pixel
+
+		# Then, get the address of (PADDLE_2_X_RIGHT + 1, PADDLE_2_Y)
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		lw $a0, PADDLE_2_X_RIGHT
+		addi $a0, $a0, 1
+		lw $a1, PADDLE_2_Y
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+		li $t9, 0x00000000
+		sw $t9, 0($v0)			# Erase the right pixel
+		
+	move_paddle_2_left_end:
+	# EPILOGUE
+		jr $ra
+# =======================================================================================
+
+
+# void move_paddle_2_right();
+#
+# If the second paddle hasn't reached the right-most possible position, move the paddle right
+# by 1 unit. (including actually drawing)
+# 
+# This function uses t0, t1, t9.
+move_paddle_2_right:
+	# PROLOGUE
+		nop
+	# BODY
+		# check if the paddle is touching the right wall, if so, terminate
+		lw $t0, SIDE_WALL_THICKNESS
+		li $t1, 63
+		sub $t0, $t1, $t0		# t0 = 63 - SIDE_WALL_THICKNESS
+		lw $t1, PADDLE_2_X_RIGHT	# t1 = PADDLE_2_X_RIGHT
+		beq $t0, $t1, move_paddle_2_right_end
+
+		# Move the paddle to the right by 1 unit:
+
+		# Change the coords first:		
+		la $t0, PADDLE_2_X_RIGHT
+		addi $t1, $t1, 1		# t1 = PADDLE_2_X_RIGHT + 1
+		sw $t1, 0($t0)			# PADDLE_2_X_RIGHT = t1
+
+		la $t0, PADDLE_2_X_LEFT
+		lw $t1, PADDLE_2_X_LEFT
+		addi $t1, $t1, 1		# t1 = PADDLE_2_X_LEFT + 1
+		sw $t1, 0($t0)			# PADDLE_2_X_LEFT = t1
+
+		# Then change the pixels:
+		# First, get the address of (PADDLE_2_X_RIGHT, PADDLE_2_Y) with get_address_from_coords
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		lw $a0, PADDLE_2_X_RIGHT
+		lw $a1, PADDLE_2_Y
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+		li $t9, 0x00ffffff
+		sw $t9, 0($v0)			# Draw the right pixel
+
+		# Then, get the address of (PADDLE_2_X_LEFT - 1, PADDLE_2_Y)
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		lw $a0, PADDLE_2_X_LEFT
+		addi $a0, $a0, -1
+		lw $a1, PADDLE_2_Y
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+		li $t9, 0x00000000
+		sw $t9, 0($v0)			# Erase the left pixel
+
+	move_paddle_2_right_end:
+	# EPILOGUE
+		jr $ra
 # =======================================================================================
 
 
@@ -346,6 +503,49 @@ draw_paddle:
 		sw $t9, 0($sp)
 
 		lw $t9, PADDLE_X_RIGHT
+		sw $t9, 8($sp)
+
+		jal draw_rectangle		# FUNCTION CALL
+
+		lw $ra, 0($sp)
+		addi $sp, $sp, 4		# restore $ra
+		# Function call complete ----------------------------------------------
+	# EPILOGUE:
+		jr $ra
+# =======================================================================================
+
+
+# void draw_paddle_2();
+# 
+# Draws the second paddle at it's position. 
+# The y-level of the paddle is constant, at PADDLE_2_Y.
+# The x-position of the paddle is stored in PADDLE_2_X_LEFT and PADDLE_2_X_RIGHT.
+# Note: PADDLE_2_Y is a constant. PADDLE_2_X_LEFT and PADDLE_2_X_RIGHT are dynamic.
+# This also means that the length and the y-level of the paddle is adjustable.
+# Also Note: Paddle's color is hardcoded to 0x00ffffff, same as the ball.
+# 
+# This function uses t9.
+draw_paddle_2:
+	# PROLOGUE:
+		nop
+	# BODY:
+		# Draw a line from (PADDLE_X_LEFT, PADDLE_Y) to (PADDLE_X_RIGHT, PADDLE_Y)
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)			# preserve $ra
+
+		li $a0, 0x00ffffff
+		
+		addi $sp, $sp, -16
+
+		lw $t9, PADDLE_2_Y
+		sw $t9, 4($sp)
+		sw $t9, 12($sp)
+
+		lw $t9, PADDLE_2_X_LEFT
+		sw $t9, 0($sp)
+
+		lw $t9, PADDLE_2_X_RIGHT
 		sw $t9, 8($sp)
 
 		jal draw_rectangle		# FUNCTION CALL
