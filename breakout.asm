@@ -55,13 +55,13 @@ BRICK_ROW_AMOUNT:
 # An array containg the possible color that a row of bricks can have,
 # is cycled through when drawing the bricks row by row
 BRICK_COLORS:
-	.word 0x008062e0
-	.word 0x007173c6
-	.word 0x006283ac
-	.word 0x00539492
-	.word 0x0043a577
-	.word 0x0034b55d
-	.word 0x0025c643
+	.word 0x007962e0
+	.word 0x007073c6
+	.word 0x006184ac
+	.word 0x00529592
+	.word 0x0043a678
+	.word 0x0034b75e
+	.word 0x0025c844
 
 # Y position of the paddle , this is constant
 # (the paddle is 1 unit thick)
@@ -373,7 +373,38 @@ collision_bottom:
 			lw $t1, VEC_Y
 			sub $t1, $0, $t1
 			sw $t1, 0($t0)
-				
+			# Change color of brick		
+			addi $sp, $sp, -16
+			sw $t0, 0($sp)
+			sw $t1, 4($sp)
+			sw $t2, 8($sp)
+			sw $t3, 12($sp)
+			
+			srl $t1, $t9, 16
+			sll $t1, $t1, 16 		# $t1 is R
+			srl $t2, $t9, 8
+			sll $t2, $t2, 24
+			srl $t2, $t2, 16		# $t2 is B
+			sll $t3, $t9, 24
+			srl $t3, $t3, 24		# $t3 is B
+			li $t0, 0x000F0000
+			sub $t1, $t1, $t0 		# $t1 is next R
+			addi $t2, $t2, 0x00001100	# $t2 is next G
+			li $t0, 0x0000001a
+			sub $t3, $t3, $t0 		# $t3 is next B
+			add $t1, $t1, $t2
+			add $t1, $t1, $t3		# $t1 is next color
+			
+			move $a0, $t1
+			
+			
+			
+			
+			lw $t0, 0($sp)
+			lw $t1, 4($sp)
+			lw $t2, 8($sp)
+			lw $t3, 12($sp)
+			addi $sp, $sp, 16
 			# Call function delete_brick_at_pos(BALL_X, BALL_Y + 1): ----------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
