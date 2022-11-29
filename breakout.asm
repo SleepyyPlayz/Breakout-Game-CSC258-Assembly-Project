@@ -187,7 +187,8 @@ game_loop:
 		jal redraw_ball
 		
 	# 3. Draw the screen (misc updates - do we even have any?)
-
+		lw $t8, SCORE
+		beq $t8, 280, game_over
 	# 4. Sleep
 		# eMARS stuff
 		lw   $t8, ADDR_DSPL
@@ -373,33 +374,7 @@ collision_bottom:
 			lw $t1, VEC_Y
 			sub $t1, $0, $t1
 			sw $t1, 0($t0)
-			# Insert new color to $a2
-			addi $sp, $sp, -16
-			sw $t0, 0($sp)
-			sw $t1, 4($sp)
-			sw $t2, 8($sp)
-			sw $t3, 12($sp)
-			
-			srl $t1, $t9, 16
-			sll $t1, $t1, 16 		# $t1 is R
-			srl $t2, $t9, 8
-			sll $t2, $t2, 24
-			srl $t2, $t2, 16		# $t2 is G
-			sll $t3, $t9, 24
-			srl $t3, $t3, 24		# $t3 is B
-			li $t0, 0x000F0000
-			sub $t1, $t1, $t0 		# $t1 is next R
-			addi $t2, $t2, 0x00001100	# $t2 is next G
-			li $t0, 0x0000001a
-			sub $t3, $t3, $t0 		# $t3 is next B
-			add $a2, $t1, $t2
-			add $a2, $a2, $t3		# $t1 is next color
-			
-			lw $t0, 0($sp)
-			lw $t1, 4($sp)
-			lw $t2, 8($sp)
-			lw $t3, 12($sp)
-			addi $sp, $sp, 16
+
 			# Call function change_brick_at_pos(BALL_X, BALL_Y + 1): ----------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
@@ -409,19 +384,6 @@ collision_bottom:
 			addi $a1, $a1, 1		# (a0,a1) = (BALL_X, BALL_Y + 1)
 
 			jal change_brick_at_pos
-
-			lw $ra, 0($sp)
-			add $sp, $sp, 4
-			# Function call complete ------------------------------------------
-			# Call function delete_brick_at_pos(BALL_X, BALL_Y + 1): ----------
-			addi $sp, $sp, -4
-			sw $ra, 0($sp)
-		
-			lw $a0, BALL_X
-			lw $a1, BALL_Y
-			addi $a1, $a1, 1		# (a0,a1) = (BALL_X, BALL_Y + 1)
-
-			#jal delete_brick_at_pos
 
 			lw $ra, 0($sp)
 			add $sp, $sp, 4
@@ -504,7 +466,7 @@ collision_right:
 			sub $t1, $0, $t1
 			sw $t1, 0($t0)
 		
-			# Call function delete_brick_at_pos(BALL_X + 1, BALL_Y): ----------
+			# Call function change_brick_at_pos(BALL_X + 1, BALL_Y): ----------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 
@@ -512,7 +474,7 @@ collision_right:
 			lw $a1, BALL_Y
 			addi $a0, $a0, 1		# (a0,a1) = (BALL_X + 1, BALL_Y)
 
-			jal delete_brick_at_pos
+			jal change_brick_at_pos
 
 			lw $ra, 0($sp)
 			add $sp, $sp, 4
@@ -595,7 +557,7 @@ collision_left:
 			sub $t1, $0, $t1
 			sw $t1, 0($t0)
 		
-			# Call function delete_brick_at_pos(BALL_X - 1, BALL_Y): ----------
+			# Call function change_brick_at_pos(BALL_X - 1, BALL_Y): ----------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 
@@ -603,7 +565,7 @@ collision_left:
 			lw $a1, BALL_Y
 			addi $a0, $a0, -1		# (a0,a1) = (BALL_X - 1, BALL_Y)
 
-			jal delete_brick_at_pos
+			jal change_brick_at_pos
 
 			lw $ra, 0($sp)
 			add $sp, $sp, 4
@@ -685,8 +647,7 @@ collision_top:
 			lw $t1, VEC_Y
 			sub $t1, $0, $t1
 			sw $t1, 0($t0)
-		
-			# Call function delete_brick_at_pos(BALL_X, BALL_Y - 1): ----------
+			# Call function change_brick_at_pos(BALL_X, BALL_Y - 1): ----------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 
@@ -694,7 +655,7 @@ collision_top:
 			lw $a1, BALL_Y
 			addi $a1, $a1, -1		# (a0,a1) = (BALL_X, BALL_Y - 1)
 
-			jal delete_brick_at_pos
+			jal change_brick_at_pos
 
 			lw $ra, 0($sp)
 			add $sp, $sp, 4
@@ -730,13 +691,11 @@ update_score:
 		addi $t0, $t0, 1
 		sw $t0, SCORE
 		move $a0, $t0
-		li $v0, 1
-		syscall	
 		move $a1, $a0
 		la $a0, ADDR_DSPL
 		addi $a0, $a0, 1
 		li $v0, 56
-		syscall
+		#syscall
 	# EPILOGUE:
 		jr $ra
 # =======================================================================================
@@ -744,14 +703,50 @@ update_score:
 
 # void change_brick_at_pos(int X, int Y);
 # 
-# CHanges the brick's color that contains the corresponding pixel (X,Y).
+# Changes the brick's color that contains the corresponding pixel (X,Y).
 # Parameters:
-#		a0 = X ; a1 = Y ; a2 = COLOR
+#		a0 = X ; a1 = Y
 # This function uses t0.
 change_brick_at_pos:
 	# PROLOGUE:
 		nop
 	# BODY
+		# Step 0: get next color
+		addi $sp, $sp, -16
+		sw $t0, 0($sp)
+		sw $t1, 4($sp)
+		sw $t2, 8($sp)
+		sw $t3, 12($sp)
+			
+		srl $t1, $t9, 16
+		sll $t1, $t1, 16 		# $t1 is R
+		srl $t2, $t9, 8
+		sll $t2, $t2, 24
+		srl $t2, $t2, 16		# $t2 is G
+		sll $t3, $t9, 24
+		srl $t3, $t3, 24		# $t3 is B
+		li $t0, 0x000F0000
+		sub $t1, $t1, $t0 		# $t1 is next R
+		addi $t2, $t2, 0x00001100	# $t2 is next G
+		li $t0, 0x0000001a
+		sub $t3, $t3, $t0 		# $t3 is next B
+		add $a2, $t1, $t2
+		add $a2, $a2, $t3		# $a2 is next color
+			
+		lw $t0, 0($sp)
+		lw $t1, 4($sp)
+		lw $t2, 8($sp)
+		lw $t3, 12($sp)
+		addi $sp, $sp, 16
+		# Call function check_color(ignore, ignore, color COLOR): --------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		jal check_color
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete ------------------------------------------
 		# Step 1: change X, Y to their relative positions
 		# (X - SIDE_WALL_TKNS, Y - TOP_BAR_TKNS - TOP_GAP_TKNS)
 		lw $t0, SIDE_WALL_THICKNESS
@@ -810,77 +805,15 @@ change_brick_at_pos:
 		# Function call complete ----------------------------------------------
 	# EPILOGUE
 		jr $ra
-# =======================================================================================
 
-
-# void delete_brick_at_pos(int X, int Y);
-# 
-# Deletes the brick that contains the corresponding pixel (X,Y).
-# Parameters:
-#		a0 = X ; a1 = Y
-# This function uses t0.
-delete_brick_at_pos:
-	# PROLOGUE:
-		nop
-	# BODY
-		# Step 1: change X, Y to their relative positions
-		# (X - SIDE_WALL_TKNS, Y - TOP_BAR_TKNS - TOP_GAP_TKNS)
-		lw $t0, SIDE_WALL_THICKNESS
-		sub $a0, $a0, $t0
-		lw $t0, TOP_BAR_THICKNESS
-		sub $a1, $a1, $t0
-		lw $t0, TOP_GAP_THICKNESS
-		sub $a1, $a1, $t0
-		# Step 2: X = (X / BRICK_WIDTH) * BRICK_WIDTH ;
-		# Y = (Y / BRICK_ROW_THICKNESS) * BRICK_ROW_THICKNESS ;
-		lw $t0, BRICK_WIDTH
-		div $a0, $t0
-		mflo $a0
-		mult $a0, $t0
-		mflo $a0
-		
-		lw $t0, BRICK_ROW_THICKNESS
-		div $a1, $t0
-		mflo $a1
-		mult $a1, $t0
-		mflo $a1
-		# Step 3: X = X + SIDE_WALL_TKNS ; Y = Y + TOP_BAR_TKNS + TOP_GAP_TKNS
-		lw $t0, SIDE_WALL_THICKNESS
-		add $a0, $a0, $t0
-		lw $t0, TOP_BAR_THICKNESS
-		add $a1, $a1, $t0
-		lw $t0, TOP_GAP_THICKNESS
-		add $a1, $a1, $t0
-		
-		# Step 4: Call function draw_rectangle to draw 0x00000000 from (X,Y) to 
-		# (X + BRICK_WIDTH - 1, Y + BRICK_ROW_THICKNESS - 1): -----------------
-		add $sp, $sp, -4
-		sw $ra, 0($sp)				# Preserve $ra
-		
-		# Parameters: 
-		addi $sp, $sp, -16
-		sw $a0, 0($sp)
-		sw $a1, 4($sp)
-
-		lw $t0, BRICK_WIDTH
-		add $a0, $a0, $t0
-		addi $a0, $a0, -1
-		sw $a0, 8($sp)
-
-		lw $t0, BRICK_ROW_THICKNESS
-		add $a1, $a1, $t0
-		addi $a1, $a1, -1
-		sw $a1, 12($sp)
-
-		li $a0, 0x00000000
-
-		jal draw_rectangle			# FUNCTION CALL
-
-		lw $ra, 0($sp)
-		add $sp, $sp, 4
-		# Function call complete ----------------------------------------------
-	# EPILOGUE
+# check_color(ignore, ignore, color COLOR):
+# checks the new color at a2 and, if it is 0xTODO, change it to black to delete the brick
+check_color:
+	bne $a2, 0x0016D92A, check_color_end
+	li $a2, 0x00000000
+	check_color_end:
 		jr $ra
+
 # =======================================================================================
 
 
