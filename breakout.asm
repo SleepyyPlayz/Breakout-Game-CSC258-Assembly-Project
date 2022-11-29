@@ -288,6 +288,12 @@ redraw_ball:
 # 
 # Game over! Currently only stops the game from running.
 game_over:
+	li $a0, 63
+	li $a1, 1000
+	li $a2, 120
+	li $a3, 100
+	li $v0, 33
+	syscall
 	li $v0, 10
 	syscall
 # =======================================================================================
@@ -334,13 +340,31 @@ collision_bottom:
 		j collision_bottom_brick	# If not those colors, then it's a brick:
 
 		collision_bottom_bounce:	# Flip the sign of VEC_Y
+			# Call function play_sound(): ------------------------------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			la $t0, VEC_Y
 			lw $t1, VEC_Y
 			sub $t1, $0, $t1
 			sw $t1, 0($t0)
 			j collision_bottom_end
 
-		collision_bottom_brick:		
+		collision_bottom_brick:	
+			# Call function play_sound(): ------------------------------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			# Flip the sign of VEC_Y
 			la $t0, VEC_Y
 			lw $t1, VEC_Y
@@ -406,6 +430,15 @@ collision_right:
 		j collision_right_brick		# If not those colors, then it's a brick:
 
 		collision_right_bounce:		# Flip the sign of VEC_X
+			# Call function play_sound(): ------------------------------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			la $t0, VEC_X
 			lw $t1, VEC_X
 			sub $t1, $0, $t1
@@ -413,6 +446,15 @@ collision_right:
 			j collision_right_end
 
 		collision_right_brick:
+			# Call function play_sound(): ------------------------------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			# Flip the sign of VEC_X
 			la $t0, VEC_X
 			lw $t1, VEC_X
@@ -478,6 +520,15 @@ collision_left:
 		j collision_left_brick		# If not those colors, then it's a brick:
 
 		collision_left_bounce:		# Flip the sign of VEC_X
+			# Call function play_sound(): ------------------------------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			la $t0, VEC_X
 			lw $t1, VEC_X
 			sub $t1, $0, $t1
@@ -485,6 +536,15 @@ collision_left:
 			j collision_left_end
 
 		collision_left_brick:
+			# Call function play_sound(): ------------------------------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			# Flip the sign of VEC_X
 			la $t0, VEC_X
 			lw $t1, VEC_X
@@ -550,6 +610,15 @@ collision_top:
 		j collision_top_brick		# If not those colors, then it's a brick:
 
 		collision_top_bounce:		# Flip the sign of VEC_Y
+			# Call function play_sound(): ------------------------------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			la $t0, VEC_Y
 			lw $t1, VEC_Y
 			sub $t1, $0, $t1
@@ -557,6 +626,15 @@ collision_top:
 			j collision_top_end
 
 		collision_top_brick:
+			# Call function play_sound(): ------------------------------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			# Flip the sign of VEC_Y
 			la $t0, VEC_Y
 			lw $t1, VEC_Y
@@ -578,6 +656,22 @@ collision_top:
 			# Function call complete ------------------------------------------
 
 	collision_top_end:
+	# EPILOGUE:
+		jr $ra
+# =======================================================================================
+# void play_sound();
+# Produces sound when a collission is detected
+# mutates a0, a1, a2, a3, v0
+play_sound:
+	# PROLOGUE:
+		nop
+	# BODY:
+		li $a0, 63
+		li $a1, 500
+		li $a2, 121
+		li $a3, 100
+		li $v0, 31
+		syscall
 	# EPILOGUE:
 		jr $ra
 # =======================================================================================
