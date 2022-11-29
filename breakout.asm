@@ -2,7 +2,7 @@
 # This file contains our implementation of Breakout.
 #
 # Student 1: Chris Wangzheng Jiang, 1008109574
-# Student 2: Yahya Elgabra, 
+# Student 2: Yahya Elgabra, 1008553030
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       4
 # - Unit height in pixels:      4
@@ -1002,7 +1002,7 @@ draw_walls:
 #		$a0 = color
 #		Stack: [ y_end, x_end, y_start, x_start <- ($sp)
 # 
-# This function will mutate t0, t1, t2, t3, t9.
+# This function will mutate t0, t1, t2, t3, t9 (and a0, a1, v0).
 draw_rectangle:
 	# PROLOGUE: takes the parameters from stack; reserves space for s0, s1, s2, s3
 		# Pop parameters from stack:
