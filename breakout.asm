@@ -106,6 +106,8 @@ VEC_Y:
 # Note that a row of bricks has width of 60 units.
 BRICK_WIDTH:
 	.word 6
+SCORE:
+	.word 0
 
 ##############################################################################
 # Mutable Data
@@ -356,11 +358,12 @@ collision_bottom:
 			j collision_bottom_end
 
 		collision_bottom_brick:	
-			# Call function play_sound(): ------------------------------------
+			# Call function play_sound() and update_score(): ------------------------------------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 			
 			jal play_sound
+			jal update_score
 			
 			lw $ra, 0($sp)
 			add $sp, $sp, 4
@@ -446,11 +449,12 @@ collision_right:
 			j collision_right_end
 
 		collision_right_brick:
-			# Call function play_sound(): ------------------------------------
+			# Call function play_sound() and update_score(): ------------------------------------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 			
 			jal play_sound
+			jal update_score
 			
 			lw $ra, 0($sp)
 			add $sp, $sp, 4
@@ -536,11 +540,12 @@ collision_left:
 			j collision_left_end
 
 		collision_left_brick:
-			# Call function play_sound(): ------------------------------------
+			# Call function play_sound() and update_score(): ------------------------------------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 			
 			jal play_sound
+			jal update_score
 			
 			lw $ra, 0($sp)
 			add $sp, $sp, 4
@@ -626,11 +631,12 @@ collision_top:
 			j collision_top_end
 
 		collision_top_brick:
-			# Call function play_sound(): ------------------------------------
+			# Call function play_sound() and update_score(): ------------------------------------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 			
 			jal play_sound
+			jal update_score
 			
 			lw $ra, 0($sp)
 			add $sp, $sp, 4
@@ -660,7 +666,7 @@ collision_top:
 		jr $ra
 # =======================================================================================
 # void play_sound();
-# Produces sound when a collission is detected
+# Produces sound when a collision is detected
 # mutates a0, a1, a2, a3, v0
 play_sound:
 	# PROLOGUE:
@@ -671,6 +677,26 @@ play_sound:
 		li $a2, 121
 		li $a3, 100
 		li $v0, 31
+		syscall
+	# EPILOGUE:
+		jr $ra
+		
+# void update_score();
+# Increments score when a brick is hit
+update_score:
+	# PROLOGUE:
+		nop
+	# BODY:
+		lw $t0, SCORE
+		addi $t0, $t0, 1
+		sw $t0, SCORE
+		move $a0, $t0
+		li $v0, 1
+		syscall	
+		move $a1, $a0
+		la $a0, ADDR_DSPL
+		addi $a0, $a0, 1
+		li $v0, 56
 		syscall
 	# EPILOGUE:
 		jr $ra
