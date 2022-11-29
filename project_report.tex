@@ -39,19 +39,26 @@ Note: All data stored below are of data type ``word''.
 \item The y-coordinate of the paddle (constant): \verb+PADDLE_Y = 61+
 \item The x-coordinates of the paddle, these are variable, one stores the x-coordinate of the leftmost pixel of the paddle, one stores the rightmost. This enables us to adjust the length of the paddle, and makes it easier for us to update its position:\\ \verb+PADDLE_X_LEFT = 26+ ; \verb+PADDLE_X_RIGHT = 36+
 \\
+\item The y-coordinate of the paddle (constant): \verb+PADDLE_2_Y = 58+
+\item The x-coordinates of the second paddle, these are variable, one stores the x-coordinate of the leftmost pixel of the paddle, one stores the rightmost. This enables us to adjust the length of the paddle, and makes it easier for us to update its position:\\ \verb+PADDLE_2_X_LEFT = 26+ ; \verb+PADDLE_2_X_RIGHT = 36+
+\\
 \item The position of the ball (this is a variable): \verb+BALL_X = 31+ ; \verb+BALL_Y = 58+
 \item The movement vectors for the ball (each cycle the balls position are calculated as such: \verb%BALL_X = BALL_X + VEC_X% ; \verb%BALL_Y = BALL_Y + VEC_Y% ). For ease of calculation, \verb+VEC_X+ and \verb+VEC_Y+ can only be either 1 or -1:\\ \verb+VEC_X = 1+ ; \verb+VEC_Y = 1+
+\\
+\item The width of a single brick (constant): \verb+BRICK_WIDTH = 6+
+\\
+\item The player's score, each time a brick is hit the score increments by 1 (variable): \verb+SCORE = 0+
 	
 \end{enumerate}
 
 Data in Memory:
 
 \begin{center}
-	\includegraphics[scale=0.5]{project_report_data_hex}
+	\includegraphics[scale=0.5]{project_report_2_data_hex}
 	
 	Data in Hexadecimal
 	
-	\includegraphics[scale=0.5]{project_report_data_dec}
+	\includegraphics[scale=0.5]{project_report_2_data_dec}
 	
 	Data in Decimal
 \end{center}
@@ -59,7 +66,7 @@ Data in Memory:
 \section{Scene}
 
 \begin{center}
-	\includegraphics[scale=0.9]{project_report_scene}
+	\includegraphics[scale=0.9]{project_report_2_scene}
 \end{center}
 
 \section{Collision Algorithm}
@@ -73,5 +80,21 @@ If the ball is touching something on it's left or right, i.e. \verb%(BALL_X + 1,
 Likewise, if the ball is touching something on it's top or bottom, i.e. \verb%(BALL_X, BALL_Y + 1)% or \verb%(BALL_X, BALL_Y - 1)%, then we invert the sign of \verb+VEC_Y+. (\verb+VEC_Y = - VEC_Y+) So that when we update the position of the ball using \verb%BALL_Y += VEC_Y%. It will go the opposite direction than where it was going.
 
 These 2 cases can have either one applied, or both applied to the directional vectors of the ball.
+
+\section{How to Play}
+
+Buttons to play: 
+
+Player 1: ',' for moving your pad to the left, '.' for moving your pad to the right
+
+Player 2: 'a' for moving your pad to the left, 'd' for moving your pad to the right
+
+'p' to pause, 'p' to unpause
+
+'q' to quit
+
+Hit bricks with the ball to destroy them, each row of bricks requires 1 extra hit to be destroyed, make sure not to let the paddle reach the bottom of the screen!
+
+You win once you destroy all the bricks
 
 \end{document}

@@ -67,25 +67,11 @@ BRICK_COLORS:
 # (the paddle is 1 unit thick)
 PADDLE_Y:
 	.word 61
-
-# X position of the paddle, this is dynamic, 2 variables helps with
-# collision detection, this also means the length of the paddle is adjustable
-PADDLE_X_LEFT:
-	.word 26
-PADDLE_X_RIGHT:
-	.word 36
 	
 # Y position of the second paddle , this is constant
 # (the paddle is 1 unit thick)
 PADDLE_2_Y:
-	.word 59
-
-# X position of the second paddle, this is dynamic, 2 variables helps with
-# collision detection, this also means the length of the paddle is adjustable
-PADDLE_2_X_LEFT:
-	.word 26
-PADDLE_2_X_RIGHT:
-	.word 36
+	.word 58
 
 # The position of the ball (1 unit by 1 unit). Initial value is initial position.
 # These 2 variables are dynamic.
@@ -106,13 +92,29 @@ VEC_Y:
 # Note that a row of bricks has width of 60 units.
 BRICK_WIDTH:
 	.word 6
-SCORE:
-	.word 0
 
 ##############################################################################
 # Mutable Data
 ##############################################################################
 
+# X position of the paddle, this is dynamic, 2 variables helps with
+# collision detection, this also means the length of the paddle is adjustable
+PADDLE_X_LEFT:
+	.word 26
+PADDLE_X_RIGHT:
+	.word 36
+	
+# X position of the second paddle, this is dynamic, 2 variables helps with
+# collision detection, this also means the length of the paddle is adjustable
+PADDLE_2_X_LEFT:
+	.word 26
+PADDLE_2_X_RIGHT:
+	.word 36
+	
+# The player's score, each time a brick is hit the score increments by 1
+SCORE:
+	.word 0
+	
 ##############################################################################
 # Code
 ##############################################################################
