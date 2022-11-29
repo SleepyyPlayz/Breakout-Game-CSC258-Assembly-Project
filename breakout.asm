@@ -82,6 +82,19 @@ BALL_X:
 BALL_Y: 
 	.word 58
 
+# The movement vector for the ball.
+# For each loop, BALL_X += VEC_X and BALL_Y += VEC_Y
+# As of now, VEC_X and VEC_Y can only be 1 or -1.
+VEC_X:
+	.word 1
+VEC_Y:
+	.word 1
+
+# The width of a single brick: (hardcoded)
+# Note that a row of bricks has width of 60 units.
+BRICK_WIDTH:
+	.word 6
+
 ##############################################################################
 # Mutable Data
 ##############################################################################
@@ -133,21 +146,460 @@ game_loop:
 	no_keyboard_input:				# no key pressed, continue as usual
     
 	# 2a. Check for collisions (of ball), and, if bump into brick, delete brick
-	
-		# (adjust directional vectors of ball if ball touches edges)
+	# Method: adjust directional vectors of ball if ball touches edges
+		# Step 1: Check top of ball : (BALL_X, BALL_Y - 1)
+		jal collision_top
+		# Step 2: Check left of ball: (BALL_X - 1, BALL_Y)
+		jal collision_left
+		# Step 3: Check right of ball: (BALL_X + 1, BALL_Y)
+		jal collision_right
+		# Step 4: Check bottom of ball: (BALL_X, BALL_Y + 1); also check for game-over
+		jal collision_bottom
 
 	# 2b. Update locations (ball)
+		jal redraw_ball
 		
-		
-	# 3. Draw the screen (misc updates)
+	# 3. Draw the screen (misc updates - do we even have any?)
 
 	# 4. Sleep
 		li $v0, 32
-		li $a0, 5
+		li $a0, 50
 		syscall
 
     #5. Go back to 1
     b game_loop
+
+
+# void redraw_ball();
+# 
+# Erases the ball at (BALL_X, BALL_Y) and redraws it at (BALL_X + VEC_X, BALL_Y + VEC_Y)
+#
+# This function uses t0, t1, t9.
+redraw_ball:
+	# PROLOGUE:
+		nop
+	# BODY
+		lw $t0, BALL_X
+		lw $t1, BALL_Y
+		
+		# Get the address of (BALL_X, BALL_Y) using get_address_from_coords
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		move $a0, $t0
+		move $a1, $t1
+
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+		# Now we erase the ball:
+		li $t9, 0x00000000
+		sw $t9, 0($v0)
+
+		# Now, update the addresses of BALL_X and BALL_Y 
+		lw $t9, VEC_X
+		la $t2, BALL_X
+		add $t0, $t0, $t9			# t0 = BALL_X + VEC_X
+		sw $t0, 0($t2)				# BALL_X = BALL_X + VEC_X
+		
+		lw $t9, VEC_Y
+		la $t2, BALL_Y
+		add $t1, $t1, $t9			# t1 = BALL_Y + VEC_Y
+		sw $t1, 0($t2)				# BALL_Y = BALL_Y + VEC_Y
+
+		# Get the address of the new (BALL_X, BALL_Y)
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		move $a0, $t0
+		move $a1, $t1
+
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+		# Now we draw the new ball:
+		li $t9, 0x00ffffff
+		sw $t9, 0($v0)
+
+	# EPILOGUE
+		jr $ra
+# =======================================================================================
+
+
+# void game_over();
+# 
+# Game over! Currently only stops the game from running.
+game_over:
+	li $v0, 10
+	syscall
+# =======================================================================================
+
+# void collision_bottom();
+#
+# Collision for the bottom of the ball (BALL_X, BALL_Y + 1).
+# First, if BALL_Y + 1 == 64, then game over, otherwise:
+# if it's a brick (i.e. not a paddle and not a wall), delete the corresponding brick.
+# 
+# This function uses t0, t1, t9.
+collision_bottom:
+	# PROLOGUE:
+		nop
+	# BODY:
+		lw $t0, BALL_X
+		lw $t1, BALL_Y
+		addi $t1, $t1, 1			# (t0,t1) = (BALL_X , BALL_Y + 1)
+
+		# Check for game-over conditions.
+		beq $t1, 64, game_over
+
+		# Obtain the address for (BALL_X, BALL_Y + 1) with get_address_from_coords
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		move $a0, $t0
+		move $a1, $t1
+
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete ----------------------------------------------
+		
+		lw $t9, 0($v0)				# Get color from address
+		
+		beq $t9, 0x00000000, collision_bottom_end
+		lw $t0, COLOR_WALLS
+		beq $t9, $t0, collision_bottom_bounce
+		beq $t9, 0x00ffffff, collision_bottom_bounce
+		
+		j collision_bottom_brick	# If not those colors, then it's a brick:
+
+		collision_bottom_bounce:	# Flip the sign of VEC_Y
+			la $t0, VEC_Y
+			lw $t1, VEC_Y
+			sub $t1, $0, $t1
+			sw $t1, 0($t0)
+			j collision_bottom_end
+
+		collision_bottom_brick:		
+			# Flip the sign of VEC_Y
+			la $t0, VEC_Y
+			lw $t1, VEC_Y
+			sub $t1, $0, $t1
+			sw $t1, 0($t0)
+				
+			# Call function delete_brick_at_pos(BALL_X, BALL_Y + 1): ----------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+		
+			lw $a0, BALL_X
+			lw $a1, BALL_Y
+			addi $a1, $a1, 1		# (a0,a1) = (BALL_X, BALL_Y + 1)
+
+			jal delete_brick_at_pos
+
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
+
+	collision_bottom_end:
+	# EPILOGUE:
+		jr $ra
+# =======================================================================================
+
+
+
+# void collision_right();
+#
+# Collision for the right of the ball (BALL_X + 1, BALL_Y).
+# And if it's a brick (i.e. not a paddle and not a wall), delete the corresponding brick.
+# 
+# This function uses t0, t1, t9.
+collision_right:
+	# PROLOGUE:
+		nop
+	# BODY:
+		lw $t0, BALL_X
+		lw $t1, BALL_Y
+		addi $t0, $t0, 1			# (t0,t1) = (BALL_X + 1, BALL_Y)
+
+		# Obtain the address for (BALL_X + 1, BALL_Y) with get_address_from_coords
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		move $a0, $t0
+		move $a1, $t1
+
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete ----------------------------------------------
+		
+		lw $t9, 0($v0)				# Get color from address
+		
+		beq $t9, 0x00000000, collision_right_end
+		lw $t0, COLOR_WALLS
+		beq $t9, $t0, collision_right_bounce
+		beq $t9, 0x00ffffff, collision_right_bounce
+
+		j collision_right_brick		# If not those colors, then it's a brick:
+
+		collision_right_bounce:		# Flip the sign of VEC_X
+			la $t0, VEC_X
+			lw $t1, VEC_X
+			sub $t1, $0, $t1
+			sw $t1, 0($t0)
+			j collision_right_end
+
+		collision_right_brick:
+			# Flip the sign of VEC_X
+			la $t0, VEC_X
+			lw $t1, VEC_X
+			sub $t1, $0, $t1
+			sw $t1, 0($t0)
+		
+			# Call function delete_brick_at_pos(BALL_X + 1, BALL_Y): ----------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+
+			lw $a0, BALL_X
+			lw $a1, BALL_Y
+			addi $a0, $a0, 1		# (a0,a1) = (BALL_X + 1, BALL_Y)
+
+			jal delete_brick_at_pos
+
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
+
+	collision_right_end:
+	# EPILOGUE:
+		jr $ra
+# =======================================================================================
+
+
+
+# void collision_left();
+#
+# Collision for the left of the ball (BALL_X - 1, BALL_Y).
+# And if it's a brick (i.e. not a paddle and not a wall), delete the corresponding brick.
+# 
+# This function uses t0, t1, t9.
+collision_left:
+	# PROLOGUE:
+		nop
+	# BODY:
+		lw $t0, BALL_X
+		lw $t1, BALL_Y
+		addi $t0, $t0, -1			# (t0,t1) = (BALL_X - 1, BALL_Y)
+
+		# Obtain the address for (BALL_X - 1, BALL_Y) with get_address_from_coords
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		move $a0, $t0
+		move $a1, $t1
+
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete ----------------------------------------------
+		
+		lw $t9, 0($v0)				# Get color from address
+		
+		beq $t9, 0x00000000, collision_left_end
+		lw $t0, COLOR_WALLS
+		beq $t9, $t0, collision_left_bounce
+		beq $t9, 0x00ffffff, collision_left_bounce
+		
+		j collision_left_brick		# If not those colors, then it's a brick:
+
+		collision_left_bounce:		# Flip the sign of VEC_X
+			la $t0, VEC_X
+			lw $t1, VEC_X
+			sub $t1, $0, $t1
+			sw $t1, 0($t0)
+			j collision_left_end
+
+		collision_left_brick:
+			# Flip the sign of VEC_X
+			la $t0, VEC_X
+			lw $t1, VEC_X
+			sub $t1, $0, $t1
+			sw $t1, 0($t0)
+		
+			# Call function delete_brick_at_pos(BALL_X - 1, BALL_Y): ----------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+
+			lw $a0, BALL_X
+			lw $a1, BALL_Y
+			addi $a0, $a0, -1		# (a0,a1) = (BALL_X - 1, BALL_Y)
+
+			jal delete_brick_at_pos
+
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
+
+	collision_left_end:
+	# EPILOGUE:
+		jr $ra
+# =======================================================================================
+
+
+
+# void collision_top();
+#
+# Collision for the top of the ball (BALL_X, BALL_Y - 1).
+# And if it's a brick (i.e. not a paddle and not a wall), delete the corresponding brick.
+# 
+# This function uses t0, t1.
+collision_top:
+	# PROLOGUE:
+		nop
+	# BODY:
+		lw $t0, BALL_X
+		lw $t1, BALL_Y
+		addi $t1, $t1, -1			# (t0,t1) = (BALL_X, BALL_Y - 1)
+
+		# Obtain the address for (BALL_X, BALL_Y - 1) with get_address_from_coords
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		move $a0, $t0
+		move $a1, $t1
+
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete ----------------------------------------------
+		
+		lw $t9, 0($v0)				# Get color from address
+		
+		beq $t9, 0x00000000, collision_top_end
+		lw $t0, COLOR_WALLS
+		beq $t9, $t0, collision_top_bounce
+		beq $t9, 0x00ffffff, collision_top_bounce
+		
+		j collision_top_brick		# If not those colors, then it's a brick:
+
+		collision_top_bounce:		# Flip the sign of VEC_Y
+			la $t0, VEC_Y
+			lw $t1, VEC_Y
+			sub $t1, $0, $t1
+			sw $t1, 0($t0)
+			j collision_top_end
+
+		collision_top_brick:
+			# Flip the sign of VEC_Y
+			la $t0, VEC_Y
+			lw $t1, VEC_Y
+			sub $t1, $0, $t1
+			sw $t1, 0($t0)
+		
+			# Call function delete_brick_at_pos(BALL_X, BALL_Y - 1): ----------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+
+			lw $a0, BALL_X
+			lw $a1, BALL_Y
+			addi $a1, $a1, -1		# (a0,a1) = (BALL_X, BALL_Y - 1)
+
+			jal delete_brick_at_pos
+
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
+
+	collision_top_end:
+	# EPILOGUE:
+		jr $ra
+# =======================================================================================
+
+
+# void delete_brick_at_pos(int X, int Y);
+# 
+# Deletes the brick that contains the corresponding pixel (X,Y).
+# Parameters:
+#		a0 = X ; a1 = Y
+# This function uses t0.
+delete_brick_at_pos:
+	# PROLOGUE:
+		nop
+	# BODY
+		# Step 1: change X, Y to their relative positions
+		# (X - SIDE_WALL_TKNS, Y - TOP_BAR_TKNS - TOP_GAP_TKNS)
+		lw $t0, SIDE_WALL_THICKNESS
+		sub $a0, $a0, $t0
+		lw $t0, TOP_BAR_THICKNESS
+		sub $a1, $a1, $t0
+		lw $t0, TOP_GAP_THICKNESS
+		sub $a1, $a1, $t0
+		# Step 2: X = (X / BRICK_WIDTH) * BRICK_WIDTH ;
+		# Y = (Y / BRICK_ROW_THICKNESS) * BRICK_ROW_THICKNESS ;
+		lw $t0, BRICK_WIDTH
+		div $a0, $t0
+		mflo $a0
+		mult $a0, $t0
+		mflo $a0
+		
+		lw $t0, BRICK_ROW_THICKNESS
+		div $a1, $t0
+		mflo $a1
+		mult $a1, $t0
+		mflo $a1
+		# Step 3: X = X + SIDE_WALL_TKNS ; Y = Y + TOP_BAR_TKNS + TOP_GAP_TKNS
+		lw $t0, SIDE_WALL_THICKNESS
+		add $a0, $a0, $t0
+		lw $t0, TOP_BAR_THICKNESS
+		add $a1, $a1, $t0
+		lw $t0, TOP_GAP_THICKNESS
+		add $a1, $a1, $t0
+		
+		# Step 4: Call function draw_rectangle to draw 0x00000000 from (X,Y) to 
+		# (X + BRICK_WIDTH - 1, Y + BRICK_ROW_THICKNESS - 1): -----------------
+		add $sp, $sp, -4
+		sw $ra, 0($sp)				# Preserve $ra
+		
+		# Parameters: 
+		addi $sp, $sp, -16
+		sw $a0, 0($sp)
+		sw $a1, 4($sp)
+
+		lw $t0, BRICK_WIDTH
+		add $a0, $a0, $t0
+		addi $a0, $a0, -1
+		sw $a0, 8($sp)
+
+		lw $t0, BRICK_ROW_THICKNESS
+		add $a1, $a1, $t0
+		addi $a1, $a1, -1
+		sw $a1, 12($sp)
+
+		li $a0, 0x00000000
+
+		jal draw_rectangle			# FUNCTION CALL
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete ----------------------------------------------
+	# EPILOGUE
+		jr $ra
+# =======================================================================================
 
 
 # void move_paddle_left();
