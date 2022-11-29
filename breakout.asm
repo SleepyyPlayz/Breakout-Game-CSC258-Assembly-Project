@@ -132,7 +132,7 @@ game_loop:
 		beq $t9, 100, respond_to_d	# key is d: move paddle right by 1 unit
 		beq $t9, 44, respond_to_comma	# key is ,: move paddle_2 left by 1 unit
 		beq $t9, 46, respond_to_period	# key is .: move paddle_2 right by 1 unit
-		#beq $t9, 112, respond_to_p	# key is p: pause game
+		beq $t9, 112, respond_to_p	# key is p: pause game
 		j end_key_responding		# key is invalid, continue as usual
 		
 		respond_to_q:  # Quit game
@@ -149,6 +149,9 @@ game_loop:
 			j end_key_responding
 		respond_to_period:  # Move paddle_2 right by 1 unit (if not at rightmost edge)
 			jal move_paddle_2_right
+			j end_key_responding
+		respond_to_p: # Pause game
+			jal pause
 			j end_key_responding
 		end_key_responding:
 			nop
@@ -176,6 +179,22 @@ game_loop:
     #5. Go back to 1
     b game_loop
 
+
+pause:
+	lw $t0, ADDR_KBRD		# t0 = address of the keyboard
+	lw $t9, 0($t0)			# bool t9 = keyboard.isPressed();
+	beq $t9, 1, pause_input		# if (t9 == 1): goto pause_input
+	j no_pause_input		# else: goto no_pause_input
+	
+	pause_input:
+	lw $t9, 4($t0)			# t9 = ASCII(keyboard.keyPressed());
+	beq $t9, 112, unpause	# key is p: unpause game
+	
+	no_pause_input:
+	b pause
+	
+	unpause:
+	jr $ra
 
 # void move_paddle_left();
 #
