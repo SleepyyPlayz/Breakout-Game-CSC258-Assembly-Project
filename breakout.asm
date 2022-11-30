@@ -194,8 +194,8 @@ game_loop:
 	# 4. Sleep
 		# eMARS stuff
 		lw   $t8, ADDR_DSPL
-		li   $t9, 1
-		sb   $t9, 0($t8)
+		li   $t9, 0x00888888
+		sw   $t9, 0($t8)
 		
 		li $v0, 32
 		li $a0, 50
@@ -697,7 +697,7 @@ update_score:
 		la $a0, ADDR_DSPL
 		addi $a0, $a0, 1
 		li $v0, 56
-		#syscall
+		syscall
 	# EPILOGUE:
 		jr $ra
 # =======================================================================================
