@@ -12,7 +12,7 @@
 \usepackage{graphicx}
 \usepackage{parskip}
 
-\title{Assembly Project: Report 1}
+\title{Assembly Project: Report 2}
 
 \author{Wangzheng Jiang 1008109574; Yahya Elgabra 1008553030}
 
@@ -47,7 +47,9 @@ Note: All data stored below are of data type ``word''.
 \\
 \item The width of a single brick (constant): \verb+BRICK_WIDTH = 6+
 \\
-\item The player's score, each time a brick is hit the score increments by 1 (variable): \verb+SCORE = 0+
+\item The players' score, each time a brick is hit the score increments by 1 (variable): \verb+SCORE = 0+
+\\
+\item The players' lives, each time the players lose, one of the hearts turn black: \verb+LIVES = [0x00FF0000, 0x00FF0000, 0x00FF0000]+
 	
 \end{enumerate}
 
@@ -85,16 +87,18 @@ These 2 cases can have either one applied, or both applied to the directional ve
 
 Buttons to play: 
 
-Player 1: ',' for moving your pad to the left, '.' for moving your pad to the right
+Player 1: `,' for moving your pad to the left, `.' for moving your pad to the right
 
-Player 2: 'a' for moving your pad to the left, 'd' for moving your pad to the right
+Player 2: `a' for moving your pad to the left, `d' for moving your pad to the right
 
-'p' to pause, 'p' to unpause
+`p' to pause, `p' to unpause and launch
 
-'q' to quit
+`q' to quit
 
-Hit bricks with the ball to destroy them, each row of bricks requires 1 extra hit to be destroyed, make sure not to let the paddle reach the bottom of the screen!
+Hit bricks with the ball to destroy them, each row of bricks requires 1 extra hit to be destroyed,press `p' to launch the ball. Make sure not to let the paddle reach the bottom of the screen or else you will lose a life! You win once you destroy all the bricks.
 
-You win once you destroy all the bricks
+\section{Specifications}
+
+This version of the project uses eMARS 4.7 as it makes the game run smoother and makes things easier to set up
 
 \end{document}

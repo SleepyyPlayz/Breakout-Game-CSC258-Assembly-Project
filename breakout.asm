@@ -73,13 +73,6 @@ PADDLE_Y:
 PADDLE_2_Y:
 	.word 58
 
-# The position of the ball (1 unit by 1 unit). Initial value is initial position.
-# These 2 variables are dynamic.
-BALL_X:
-	.word 31
-BALL_Y: 
-	.word 57
-
 # The movement vector for the ball.
 # For each loop, BALL_X += VEC_X and BALL_Y += VEC_Y
 # As of now, VEC_X and VEC_Y can only be 1 or -1.
@@ -96,6 +89,13 @@ BRICK_WIDTH:
 ##############################################################################
 # Mutable Data
 ##############################################################################
+
+# The position of the ball (1 unit by 1 unit). Initial value is initial position.
+# These 2 variables are dynamic.
+BALL_X:
+	.word 31
+BALL_Y: 
+	.word 57
 
 # X position of the paddle, this is dynamic, 2 variables helps with
 # collision detection, this also means the length of the paddle is adjustable
@@ -115,6 +115,12 @@ PADDLE_2_X_RIGHT:
 SCORE:
 	.word 0
 	
+# Keeps track of the players' lives
+LIVES:
+	.word 0x00FF0000
+	.word 0x00FF0000
+	.word 0x00FF0000
+	
 ##############################################################################
 # Code
 ##############################################################################
@@ -127,11 +133,18 @@ main:
 		jal draw_walls  # draw_walls() : draw the walls (and top bar) of the game
 	# Step 2: Draw the bricks (a few colored rows)
 		jal draw_bricks
-    # Step 3: Draw the paddle in the initial position
+    	# Step 3: Draw the paddle in the initial position
 		jal draw_paddle
 		jal draw_paddle_2
 	# Step 4: Draw the ball in the initial position
 		jal draw_ball
+	# Step 5: Draw lives
+		jal draw_lives
+		# eMARS stuff
+		lw   $t8, ADDR_DSPL
+		li   $t9, 0x00888888
+		sw   $t9, 0($t8)
+		b pause
 	
 
 game_loop:
@@ -189,6 +202,7 @@ game_loop:
 		jal redraw_ball
 		
 	# 3. Draw the screen (misc updates - do we even have any?)
+
 		lw $t8, SCORE
 		beq $t8, 280, game_over
 	# 4. Sleep
@@ -217,13 +231,13 @@ pause:
 	
 	pause_input:
 	lw $t9, 4($t0)			# t9 = ASCII(keyboard.keyPressed());
-	beq $t9, 112, unpause	# key is p: unpause game
+	beq $t9, 112, unpause		# key is p: unpause game
 	
 	no_pause_input:
 	b pause
 	
 	unpause:
-	jr $ra
+	b game_loop
 # =======================================================================================
 
 
@@ -293,14 +307,123 @@ redraw_ball:
 # 
 # Game over! Currently only stops the game from running.
 game_over:
+	# sound stuff
 	li $a0, 63
 	li $a1, 1000
 	li $a2, 120
 	li $a3, 100
 	li $v0, 33
 	syscall
+	# exit shamefully
 	li $v0, 10
 	syscall
+	
+	
+# void reduce_hp();
+#
+# if player has more than 1 hp, remove 1 hp and retry, else, game over
+reduce_hp:
+	la $t0, LIVES
+	lw $t1, 4($t0)
+	beq $t1, 0, third_death
+	lw $t1, 8($t0)
+	beq $t1, 0, second_death
+	first_death:
+		li $t1, 0
+		sw $t1, 8($t0)
+		b reinitialize
+		
+	second_death: 
+		li $t1, 0
+		sw $t1, 4($t0)
+		
+	reinitialize: # resets ball and paddles positions, redraw them and lives
+		la $t0, BALL_X
+		li $t1, 31
+		sw $t1, 0($t0)
+		
+		la $t0, BALL_Y
+		li $t1, 57
+		sw $t1, 0($t0)
+		
+		la $t0, PADDLE_X_LEFT
+		li $t1, 26
+		sw $t1, 0($t0)
+		
+		la $t0, PADDLE_X_RIGHT
+		li $t1, 36
+		sw $t1, 0($t0)
+		
+		la $t0, PADDLE_2_X_LEFT
+		li $t1, 26
+		sw $t1, 0($t0)
+		
+		la $t0, PADDLE_2_X_RIGHT
+		li $t1, 36
+		sw $t1, 0($t0)
+		
+		jal erase_ball_paddles
+		jal draw_paddle
+		jal draw_paddle_2
+		jal draw_ball
+		jal draw_lives
+		# eMARS stuff
+		lw   $t8, ADDR_DSPL
+		li   $t9, 0x00888888
+		sw   $t9, 0($t8)
+		b pause
+	third_death:
+		li $t1, 0
+		sw $t1, 0($t0)
+		jal draw_lives
+		# eMARS stuff
+		lw   $t8, ADDR_DSPL
+		li   $t9, 0x00888888
+		sw   $t9, 0($t8)
+		b game_over
+		
+
+# void erase_ball_paddles();
+#
+# cleans the area between the walls and under the bricks
+erase_ball_paddles:
+	# PROLOGUE:
+		nop
+	# BODY:
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		li $a0, 0
+		la $t0, SIDE_WALL_THICKNESS
+		lw $t0, 0($t0)		# x_start
+		li $t3, 63		# y_end
+		sub $t2, $t3, $t0	# x_end
+		la $t4 TOP_BAR_THICKNESS
+		lw $t5, 0($t4)
+		move $t1, $t5
+		la $t4 TOP_GAP_THICKNESS
+		lw $t5, 0($t4)
+		add $t1, $t1, $t5
+		la $t4 BRICK_ROW_THICKNESS
+		lw $t5, 0($t4)
+		la $t4 BRICK_ROW_AMOUNT
+		lw $t4, 0($t4)
+		mult $t5, $t4
+		mflo $t4
+		add $t1, $t1, $t4	# y_start
+		addi $sp, $sp, -16
+		sw $t0, 0($sp)
+		sw $t1, 4($sp)
+		sw $t2, 8($sp)
+		sw $t3, 12($sp)
+		jal draw_rectangle
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete ----------------------------------------------
+	# EPILOGUE:
+		jr $ra
 # =======================================================================================
 
 # void collision_bottom();
@@ -319,7 +442,7 @@ collision_bottom:
 		addi $t1, $t1, 1			# (t0,t1) = (BALL_X , BALL_Y + 1)
 
 		# Check for game-over conditions.
-		beq $t1, 64, game_over
+		beq $t1, 64, reduce_hp
 
 		# Obtain the address for (BALL_X, BALL_Y + 1) with get_address_from_coords
 		# Function call: ------------------------------------------------------
@@ -696,8 +819,6 @@ update_score:
 		move $a1, $a0
 		la $a0, ADDR_DSPL
 		addi $a0, $a0, 1
-		li $v0, 56
-		syscall
 	# EPILOGUE:
 		jr $ra
 # =======================================================================================
@@ -1080,9 +1201,6 @@ move_paddle_2_right:
 		jr $ra
 # =======================================================================================
 
-
-
-
 # void draw_ball();
 # 
 # Draws the ball (1 unit by 1 unit) at (BALL_X, BALL_Y).
@@ -1378,6 +1496,68 @@ draw_walls:
 
 	# EPILOGUE:
 		jr $ra
+# =======================================================================================
+
+# void draw_lives();
+#
+# Draws squares at the top of the screen, 3 if players have 3 lives, 2 if players have
+# 2, and 1 if players have 1
+draw_lives:
+	# PROLOGUE:
+		nop
+	# BODY:
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)			# Preserve $ra first, then pass parameters!
+
+		
+		# draw the three hearts
+		la $a0, LIVES
+		lw $a0, 0($a0)
+		li $t0, 2		# x_start
+		li $t1, 2		# y_start
+		li $t2, 4		# x_end
+		li $t3, 4		# y_end
+		addi $sp, $sp, -16
+		sw $t0, 0($sp) 
+		sw $t1, 4($sp)
+		sw $t2, 8($sp)
+		sw $t3, 12($sp)		
+		jal draw_rectangle		# FUNCTION CALL
+		
+		la $a0, LIVES
+		lw $a0, 4($a0)
+		li $t0, 6
+		li $t1, 2
+		li $t2, 8
+		li $t3, 4
+		addi $sp, $sp, -16
+		sw $t0, 0($sp)
+		sw $t1, 4($sp)
+		sw $t2, 8($sp)
+		sw $t3, 12($sp)		
+		jal draw_rectangle		# FUNCTION CALL
+		
+		la $a0, LIVES
+		lw $a0, 8($a0)
+		li $t0, 10
+		li $t1, 2
+		li $t2, 12
+		li $t3, 4
+		addi $sp, $sp, -16
+		sw $t0, 0($sp)
+		sw $t1, 4($sp)
+		sw $t2, 8($sp)
+		sw $t3, 12($sp)		
+		jal draw_rectangle		# FUNCTION CALL
+
+
+		lw $ra, 0($sp)
+		addi $sp, $sp, 4		# Restore $ra
+		# Function call complete ----------------------------------------------
+	# EPILOGUE:
+		jr $ra
+
 # =======================================================================================
 
 
