@@ -321,19 +321,20 @@ game_over:
 	
 # void reduce_hp();
 #
-# if player has more than 1 hp, remove 1 hp and retry, else, game over
+# remove 1 hp, retry if more than 1 hp, else, game over
+# mutates $t0, $t1, $t8, $t9
 reduce_hp:
 	la $t0, LIVES
 	lw $t1, 4($t0)
 	beq $t1, 0, third_death
 	lw $t1, 8($t0)
 	beq $t1, 0, second_death
-	first_death:
+	first_death: # change the color of the 3rd heart to black then reinitialize
 		li $t1, 0
 		sw $t1, 8($t0)
 		b reinitialize
 		
-	second_death: 
+	second_death: # change the color of the 2nd heart to black then reinitialize
 		li $t1, 0
 		sw $t1, 4($t0)
 		
@@ -371,8 +372,8 @@ reduce_hp:
 		lw   $t8, ADDR_DSPL
 		li   $t9, 0x00888888
 		sw   $t9, 0($t8)
-		b pause
-	third_death:
+		b pause # prepare launch
+	third_death: # change the color of the 1st heart to black, game over
 		li $t1, 0
 		sw $t1, 0($t0)
 		jal draw_lives
@@ -386,6 +387,7 @@ reduce_hp:
 # void erase_ball_paddles();
 #
 # cleans the area between the walls and under the bricks
+# mutates $a0, $t0, $1, $t2, $t3, $t4, $t5
 erase_ball_paddles:
 	# PROLOGUE:
 		nop
@@ -396,9 +398,9 @@ erase_ball_paddles:
 
 		li $a0, 0
 		la $t0, SIDE_WALL_THICKNESS
-		lw $t0, 0($t0)		# x_start
-		li $t3, 63		# y_end
-		sub $t2, $t3, $t0	# x_end
+		lw $t0, 0($t0)		# x_start = SIDE_WALL_THICKNESS
+		li $t3, 63		# y_end = 63
+		sub $t2, $t3, $t0	# x_end = 63 - SIDE_WALL_THICKNESS
 		la $t4 TOP_BAR_THICKNESS
 		lw $t5, 0($t4)
 		move $t1, $t5
@@ -410,8 +412,9 @@ erase_ball_paddles:
 		la $t4 BRICK_ROW_AMOUNT
 		lw $t4, 0($t4)
 		mult $t5, $t4
-		mflo $t4
-		add $t1, $t1, $t4	# y_start
+		mflo $t4		# y_start = TOP_BAR_THICKNESS + TOP_GAP_THICKNESS +
+		add $t1, $t1, $t4	# BRICK_ROW_THICKNESS * BRICK_ROW_AMOUNT
+		# draw_rectangle parameters
 		addi $sp, $sp, -16
 		sw $t0, 0($sp)
 		sw $t1, 4($sp)
@@ -468,7 +471,7 @@ collision_bottom:
 		j collision_bottom_brick	# If not those colors, then it's a brick:
 
 		collision_bottom_bounce:	# Flip the sign of VEC_Y
-			# Call function play_sound(): ------------------------------------
+			# Call function play_sound(): ----------------------------------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 			
@@ -484,7 +487,7 @@ collision_bottom:
 			j collision_bottom_end
 
 		collision_bottom_brick:	
-			# Call function play_sound() and update_score(): ------------------------------------
+			# Call functions play_sound() and update_score(): ------------------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 			
@@ -575,7 +578,7 @@ collision_right:
 			j collision_right_end
 
 		collision_right_brick:
-			# Call function play_sound() and update_score(): ------------------------------------
+			# Call functions play_sound() and update_score(): -----------------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 			
@@ -666,7 +669,7 @@ collision_left:
 			j collision_left_end
 
 		collision_left_brick:
-			# Call function play_sound() and update_score(): ------------------------------------
+			# Call functions play_sound() and update_score(): -----------------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 			
@@ -757,7 +760,7 @@ collision_top:
 			j collision_top_end
 
 		collision_top_brick:
-			# Call function play_sound() and update_score(): ------------------------------------
+			# Call functions play_sound() and update_score(): -----------------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 			
@@ -807,18 +810,16 @@ play_sound:
 		jr $ra
 		
 # void update_score();
-# Increments score when a brick is hit
+# Increments score by 1 when a brick is hit
+# mutates $t0, $t1
 update_score:
 	# PROLOGUE:
 		nop
 	# BODY:
-		lw $t0, SCORE
+		la $t1, SCORE
+		lw $t0, 0($t1)
 		addi $t0, $t0, 1
-		sw $t0, SCORE
-		move $a0, $t0
-		move $a1, $a0
-		la $a0, ADDR_DSPL
-		addi $a0, $a0, 1
+		sw $t0, 0($t1)
 	# EPILOGUE:
 		jr $ra
 # =======================================================================================
@@ -834,7 +835,7 @@ change_brick_at_pos:
 	# PROLOGUE:
 		nop
 	# BODY
-		# Step 0: get next color
+		# Step 0: get next color (realized that this is large enough to be a helper function too late)
 		addi $sp, $sp, -16
 		sw $t0, 0($sp)
 		sw $t1, 4($sp)
@@ -1511,7 +1512,7 @@ draw_lives:
 		sw $ra, 0($sp)			# Preserve $ra first, then pass parameters!
 
 		
-		# draw the three hearts
+		# draw the three hearts (could have done a loop but its only 3 so didn't feel like it)
 		la $a0, LIVES
 		lw $a0, 0($a0)
 		li $t0, 2		# x_start
