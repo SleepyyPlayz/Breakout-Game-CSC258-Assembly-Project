@@ -55,31 +55,22 @@ BRICK_ROW_AMOUNT:
 # An array containg the possible color that a row of bricks can have,
 # is cycled through when drawing the bricks row by row
 BRICK_COLORS:
-	.word 0x008062e0
-	.word 0x007173c6
-	.word 0x006283ac
-	.word 0x00539492
-	.word 0x0043a577
-	.word 0x0034b55d
-	.word 0x0025c643
+	.word 0x007962e0
+	.word 0x007073c6
+	.word 0x006184ac
+	.word 0x00529592
+	.word 0x0043a678
+	.word 0x0034b75e
+	.word 0x0025c844
 
 # Y position of the paddle , this is constant
 # (the paddle is 1 unit thick)
 PADDLE_Y:
 	.word 61
-
-# X position of the paddle, this is dynamic, 2 variables helps with
-# collision detection, this also means the length of the paddle is adjustable
-PADDLE_X_LEFT:
-	.word 26
-PADDLE_X_RIGHT:
-	.word 36
-
-# The position of the ball (1 unit by 1 unit). Initial value is initial position.
-# These 2 variables are dynamic.
-BALL_X:
-	.word 31
-BALL_Y: 
+	
+# Y position of the second paddle , this is constant
+# (the paddle is 1 unit thick)
+PADDLE_2_Y:
 	.word 58
 
 # The movement vector for the ball.
@@ -99,6 +90,37 @@ BRICK_WIDTH:
 # Mutable Data
 ##############################################################################
 
+# The position of the ball (1 unit by 1 unit). Initial value is initial position.
+# These 2 variables are dynamic.
+BALL_X:
+	.word 31
+BALL_Y: 
+	.word 57
+
+# X position of the paddle, this is dynamic, 2 variables helps with
+# collision detection, this also means the length of the paddle is adjustable
+PADDLE_X_LEFT:
+	.word 26
+PADDLE_X_RIGHT:
+	.word 36
+	
+# X position of the second paddle, this is dynamic, 2 variables helps with
+# collision detection, this also means the length of the paddle is adjustable
+PADDLE_2_X_LEFT:
+	.word 26
+PADDLE_2_X_RIGHT:
+	.word 36
+	
+# The player's score, each time a brick is hit the score increments by 1
+SCORE:
+	.word 0
+	
+# Keeps track of the players' lives
+LIVES:
+	.word 0x00FF0000
+	.word 0x00FF0000
+	.word 0x00FF0000
+	
 ##############################################################################
 # Code
 ##############################################################################
@@ -111,10 +133,18 @@ main:
 		jal draw_walls  # draw_walls() : draw the walls (and top bar) of the game
 	# Step 2: Draw the bricks (a few colored rows)
 		jal draw_bricks
-    # Step 3: Draw the paddle in the initial position
+    	# Step 3: Draw the paddle in the initial position
 		jal draw_paddle
+		jal draw_paddle_2
 	# Step 4: Draw the ball in the initial position
 		jal draw_ball
+	# Step 5: Draw lives
+		jal draw_lives
+		# eMARS stuff
+		lw   $t8, ADDR_DSPL
+		li   $t9, 0x00888888
+		sw   $t9, 0($t8)
+		b pause
 	
 
 game_loop:
@@ -126,10 +156,13 @@ game_loop:
 
 	keyboard_input:					# keyboard input detected
 		lw $t9, 4($t0)				# t9 = ASCII(keyboard.keyPressed());
-
+		
 		beq $t9, 113, respond_to_q	# key is q: quit
 		beq $t9, 97, respond_to_a	# key is a: move paddle left by 1 unit
 		beq $t9, 100, respond_to_d	# key is d: move paddle right by 1 unit
+		beq $t9, 44, respond_to_comma	# key is ,: move paddle_2 left by 1 unit
+		beq $t9, 46, respond_to_period	# key is .: move paddle_2 right by 1 unit
+		beq $t9, 112, respond_to_p	# key is p: pause game
 		j end_key_responding		# key is invalid, continue as usual
 		
 		respond_to_q:  # Quit game
@@ -140,6 +173,15 @@ game_loop:
 			j end_key_responding
 		respond_to_d:  # Move paddle right by 1 unit (if not at rightmost edge)
 			jal move_paddle_right
+			j end_key_responding
+		respond_to_comma:  # Move paddle_2 left by 1 unit (if not at leftmost edge)
+			jal move_paddle_2_left
+			j end_key_responding
+		respond_to_period:  # Move paddle_2 right by 1 unit (if not at rightmost edge)
+			jal move_paddle_2_right
+			j end_key_responding
+		respond_to_p: # Pause game
+			jal pause
 			j end_key_responding
 		end_key_responding:
 			nop
@@ -161,13 +203,42 @@ game_loop:
 		
 	# 3. Draw the screen (misc updates - do we even have any?)
 
+		lw $t8, SCORE
+		beq $t8, 280, game_over
 	# 4. Sleep
+		# eMARS stuff
+		lw   $t8, ADDR_DSPL
+		li   $t9, 0x00888888
+		sw   $t9, 0($t8)
+		
 		li $v0, 32
 		li $a0, 50
 		syscall
 
     #5. Go back to 1
     b game_loop
+
+
+# void pause();
+#
+# Pauses the game.
+# This function uses t0, t9. (unop)
+pause:
+	lw $t0, ADDR_KBRD		# t0 = address of the keyboard
+	lw $t9, 0($t0)			# bool t9 = keyboard.isPressed();
+	beq $t9, 1, pause_input		# if (t9 == 1): goto pause_input
+	j no_pause_input		# else: goto no_pause_input
+	
+	pause_input:
+	lw $t9, 4($t0)			# t9 = ASCII(keyboard.keyPressed());
+	beq $t9, 112, unpause		# key is p: unpause game
+	
+	no_pause_input:
+	b pause
+	
+	unpause:
+	b game_loop
+# =======================================================================================
 
 
 # void redraw_ball();
@@ -236,8 +307,126 @@ redraw_ball:
 # 
 # Game over! Currently only stops the game from running.
 game_over:
+	# sound stuff
+	li $a0, 63
+	li $a1, 1000
+	li $a2, 120
+	li $a3, 100
+	li $v0, 33
+	syscall
+	# exit shamefully
 	li $v0, 10
 	syscall
+	
+	
+# void reduce_hp();
+#
+# remove 1 hp, retry if more than 1 hp, else, game over
+# mutates $t0, $t1, $t8, $t9
+reduce_hp:
+	la $t0, LIVES
+	lw $t1, 4($t0)
+	beq $t1, 0, third_death
+	lw $t1, 8($t0)
+	beq $t1, 0, second_death
+	first_death: # change the color of the 3rd heart to black then reinitialize
+		li $t1, 0
+		sw $t1, 8($t0)
+		b reinitialize
+		
+	second_death: # change the color of the 2nd heart to black then reinitialize
+		li $t1, 0
+		sw $t1, 4($t0)
+		
+	reinitialize: # resets ball and paddles positions, redraw them and lives
+		la $t0, BALL_X
+		li $t1, 31
+		sw $t1, 0($t0)
+		
+		la $t0, BALL_Y
+		li $t1, 57
+		sw $t1, 0($t0)
+		
+		la $t0, PADDLE_X_LEFT
+		li $t1, 26
+		sw $t1, 0($t0)
+		
+		la $t0, PADDLE_X_RIGHT
+		li $t1, 36
+		sw $t1, 0($t0)
+		
+		la $t0, PADDLE_2_X_LEFT
+		li $t1, 26
+		sw $t1, 0($t0)
+		
+		la $t0, PADDLE_2_X_RIGHT
+		li $t1, 36
+		sw $t1, 0($t0)
+		
+		jal erase_ball_paddles
+		jal draw_paddle
+		jal draw_paddle_2
+		jal draw_ball
+		jal draw_lives
+		# eMARS stuff
+		lw   $t8, ADDR_DSPL
+		li   $t9, 0x00888888
+		sw   $t9, 0($t8)
+		b pause # prepare launch
+	third_death: # change the color of the 1st heart to black, game over
+		li $t1, 0
+		sw $t1, 0($t0)
+		jal draw_lives
+		# eMARS stuff
+		lw   $t8, ADDR_DSPL
+		li   $t9, 0x00888888
+		sw   $t9, 0($t8)
+		b game_over
+		
+
+# void erase_ball_paddles();
+#
+# cleans the area between the walls and under the bricks
+# mutates $a0, $t0, $1, $t2, $t3, $t4, $t5
+erase_ball_paddles:
+	# PROLOGUE:
+		nop
+	# BODY:
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		li $a0, 0
+		la $t0, SIDE_WALL_THICKNESS
+		lw $t0, 0($t0)		# x_start = SIDE_WALL_THICKNESS
+		li $t3, 63		# y_end = 63
+		sub $t2, $t3, $t0	# x_end = 63 - SIDE_WALL_THICKNESS
+		la $t4 TOP_BAR_THICKNESS
+		lw $t5, 0($t4)
+		move $t1, $t5
+		la $t4 TOP_GAP_THICKNESS
+		lw $t5, 0($t4)
+		add $t1, $t1, $t5
+		la $t4 BRICK_ROW_THICKNESS
+		lw $t5, 0($t4)
+		la $t4 BRICK_ROW_AMOUNT
+		lw $t4, 0($t4)
+		mult $t5, $t4
+		mflo $t4		# y_start = TOP_BAR_THICKNESS + TOP_GAP_THICKNESS +
+		add $t1, $t1, $t4	# BRICK_ROW_THICKNESS * BRICK_ROW_AMOUNT
+		# draw_rectangle parameters
+		addi $sp, $sp, -16
+		sw $t0, 0($sp)
+		sw $t1, 4($sp)
+		sw $t2, 8($sp)
+		sw $t3, 12($sp)
+		jal draw_rectangle
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete ----------------------------------------------
+	# EPILOGUE:
+		jr $ra
 # =======================================================================================
 
 # void collision_bottom();
@@ -256,7 +445,7 @@ collision_bottom:
 		addi $t1, $t1, 1			# (t0,t1) = (BALL_X , BALL_Y + 1)
 
 		# Check for game-over conditions.
-		beq $t1, 64, game_over
+		beq $t1, 64, reduce_hp
 
 		# Obtain the address for (BALL_X, BALL_Y + 1) with get_address_from_coords
 		# Function call: ------------------------------------------------------
@@ -282,20 +471,39 @@ collision_bottom:
 		j collision_bottom_brick	# If not those colors, then it's a brick:
 
 		collision_bottom_bounce:	# Flip the sign of VEC_Y
+			# Call function play_sound(): ----------------------------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			la $t0, VEC_Y
 			lw $t1, VEC_Y
 			sub $t1, $0, $t1
 			sw $t1, 0($t0)
 			j collision_bottom_end
 
-		collision_bottom_brick:		
+		collision_bottom_brick:	
+			# Call functions play_sound() and update_score(): ------------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			jal update_score
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			# Flip the sign of VEC_Y
 			la $t0, VEC_Y
 			lw $t1, VEC_Y
 			sub $t1, $0, $t1
 			sw $t1, 0($t0)
-				
-			# Call function delete_brick_at_pos(BALL_X, BALL_Y + 1): ----------
+
+			# Call function change_brick_at_pos(BALL_X, BALL_Y + 1): ----------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 		
@@ -303,7 +511,7 @@ collision_bottom:
 			lw $a1, BALL_Y
 			addi $a1, $a1, 1		# (a0,a1) = (BALL_X, BALL_Y + 1)
 
-			jal delete_brick_at_pos
+			jal change_brick_at_pos
 
 			lw $ra, 0($sp)
 			add $sp, $sp, 4
@@ -354,6 +562,15 @@ collision_right:
 		j collision_right_brick		# If not those colors, then it's a brick:
 
 		collision_right_bounce:		# Flip the sign of VEC_X
+			# Call function play_sound(): ------------------------------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			la $t0, VEC_X
 			lw $t1, VEC_X
 			sub $t1, $0, $t1
@@ -361,13 +578,23 @@ collision_right:
 			j collision_right_end
 
 		collision_right_brick:
+			# Call functions play_sound() and update_score(): -----------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			jal update_score
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			# Flip the sign of VEC_X
 			la $t0, VEC_X
 			lw $t1, VEC_X
 			sub $t1, $0, $t1
 			sw $t1, 0($t0)
 		
-			# Call function delete_brick_at_pos(BALL_X + 1, BALL_Y): ----------
+			# Call function change_brick_at_pos(BALL_X + 1, BALL_Y): ----------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 
@@ -375,7 +602,7 @@ collision_right:
 			lw $a1, BALL_Y
 			addi $a0, $a0, 1		# (a0,a1) = (BALL_X + 1, BALL_Y)
 
-			jal delete_brick_at_pos
+			jal change_brick_at_pos
 
 			lw $ra, 0($sp)
 			add $sp, $sp, 4
@@ -426,6 +653,15 @@ collision_left:
 		j collision_left_brick		# If not those colors, then it's a brick:
 
 		collision_left_bounce:		# Flip the sign of VEC_X
+			# Call function play_sound(): ------------------------------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			la $t0, VEC_X
 			lw $t1, VEC_X
 			sub $t1, $0, $t1
@@ -433,13 +669,23 @@ collision_left:
 			j collision_left_end
 
 		collision_left_brick:
+			# Call functions play_sound() and update_score(): -----------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			jal update_score
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			# Flip the sign of VEC_X
 			la $t0, VEC_X
 			lw $t1, VEC_X
 			sub $t1, $0, $t1
 			sw $t1, 0($t0)
 		
-			# Call function delete_brick_at_pos(BALL_X - 1, BALL_Y): ----------
+			# Call function change_brick_at_pos(BALL_X - 1, BALL_Y): ----------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 
@@ -447,7 +693,7 @@ collision_left:
 			lw $a1, BALL_Y
 			addi $a0, $a0, -1		# (a0,a1) = (BALL_X - 1, BALL_Y)
 
-			jal delete_brick_at_pos
+			jal change_brick_at_pos
 
 			lw $ra, 0($sp)
 			add $sp, $sp, 4
@@ -498,6 +744,15 @@ collision_top:
 		j collision_top_brick		# If not those colors, then it's a brick:
 
 		collision_top_bounce:		# Flip the sign of VEC_Y
+			# Call function play_sound(): ------------------------------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			la $t0, VEC_Y
 			lw $t1, VEC_Y
 			sub $t1, $0, $t1
@@ -505,13 +760,22 @@ collision_top:
 			j collision_top_end
 
 		collision_top_brick:
+			# Call functions play_sound() and update_score(): -----------------
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			
+			jal play_sound
+			jal update_score
+			
+			lw $ra, 0($sp)
+			add $sp, $sp, 4
+			# Function call complete ------------------------------------------
 			# Flip the sign of VEC_Y
 			la $t0, VEC_Y
 			lw $t1, VEC_Y
 			sub $t1, $0, $t1
 			sw $t1, 0($t0)
-		
-			# Call function delete_brick_at_pos(BALL_X, BALL_Y - 1): ----------
+			# Call function change_brick_at_pos(BALL_X, BALL_Y - 1): ----------
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 
@@ -519,7 +783,7 @@ collision_top:
 			lw $a1, BALL_Y
 			addi $a1, $a1, -1		# (a0,a1) = (BALL_X, BALL_Y - 1)
 
-			jal delete_brick_at_pos
+			jal change_brick_at_pos
 
 			lw $ra, 0($sp)
 			add $sp, $sp, 4
@@ -529,18 +793,84 @@ collision_top:
 	# EPILOGUE:
 		jr $ra
 # =======================================================================================
+# void play_sound();
+# Produces sound when a collision is detected
+# mutates a0, a1, a2, a3, v0
+play_sound:
+	# PROLOGUE:
+		nop
+	# BODY:
+		li $a0, 63
+		li $a1, 500
+		li $a2, 121
+		li $a3, 100
+		li $v0, 31
+		syscall
+	# EPILOGUE:
+		jr $ra
+		
+# void update_score();
+# Increments score by 1 when a brick is hit
+# mutates $t0, $t1
+update_score:
+	# PROLOGUE:
+		nop
+	# BODY:
+		la $t1, SCORE
+		lw $t0, 0($t1)
+		addi $t0, $t0, 1
+		sw $t0, 0($t1)
+	# EPILOGUE:
+		jr $ra
+# =======================================================================================
 
 
-# void delete_brick_at_pos(int X, int Y);
+# void change_brick_at_pos(int X, int Y);
 # 
-# Deletes the brick that contains the corresponding pixel (X,Y).
+# Changes the brick's color that contains the corresponding pixel (X,Y).
 # Parameters:
 #		a0 = X ; a1 = Y
 # This function uses t0.
-delete_brick_at_pos:
+change_brick_at_pos:
 	# PROLOGUE:
 		nop
 	# BODY
+		# Step 0: get next color (realized that this is large enough to be a helper function too late)
+		addi $sp, $sp, -16
+		sw $t0, 0($sp)
+		sw $t1, 4($sp)
+		sw $t2, 8($sp)
+		sw $t3, 12($sp)
+			
+		srl $t1, $t9, 16
+		sll $t1, $t1, 16 		# $t1 is R
+		srl $t2, $t9, 8
+		sll $t2, $t2, 24
+		srl $t2, $t2, 16		# $t2 is G
+		sll $t3, $t9, 24
+		srl $t3, $t3, 24		# $t3 is B
+		li $t0, 0x000F0000
+		sub $t1, $t1, $t0 		# $t1 is next R
+		addi $t2, $t2, 0x00001100	# $t2 is next G
+		li $t0, 0x0000001a
+		sub $t3, $t3, $t0 		# $t3 is next B
+		add $a2, $t1, $t2
+		add $a2, $a2, $t3		# $a2 is next color
+			
+		lw $t0, 0($sp)
+		lw $t1, 4($sp)
+		lw $t2, 8($sp)
+		lw $t3, 12($sp)
+		addi $sp, $sp, 16
+		# Call function check_color(ignore, ignore, color COLOR): --------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		jal check_color
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete ------------------------------------------
 		# Step 1: change X, Y to their relative positions
 		# (X - SIDE_WALL_TKNS, Y - TOP_BAR_TKNS - TOP_GAP_TKNS)
 		lw $t0, SIDE_WALL_THICKNESS
@@ -570,7 +900,7 @@ delete_brick_at_pos:
 		lw $t0, TOP_GAP_THICKNESS
 		add $a1, $a1, $t0
 		
-		# Step 4: Call function draw_rectangle to draw 0x00000000 from (X,Y) to 
+		# Step 4: Call function draw_rectangle to draw COLOR from (X,Y) to 
 		# (X + BRICK_WIDTH - 1, Y + BRICK_ROW_THICKNESS - 1): -----------------
 		add $sp, $sp, -4
 		sw $ra, 0($sp)				# Preserve $ra
@@ -590,7 +920,7 @@ delete_brick_at_pos:
 		addi $a1, $a1, -1
 		sw $a1, 12($sp)
 
-		li $a0, 0x00000000
+		move $a0, $a2
 
 		jal draw_rectangle			# FUNCTION CALL
 
@@ -599,6 +929,15 @@ delete_brick_at_pos:
 		# Function call complete ----------------------------------------------
 	# EPILOGUE
 		jr $ra
+
+# check_color(ignore, ignore, color COLOR):
+# checks the new color at a2 and, if it is 0xTODO, change it to black to delete the brick
+check_color:
+	bne $a2, 0x0016D92A, check_color_end
+	li $a2, 0x00000000
+	check_color_end:
+		jr $ra
+
 # =======================================================================================
 
 
@@ -731,10 +1070,137 @@ move_paddle_right:
 	move_paddle_right_end:
 	# EPILOGUE
 		jr $ra
+
+# void move_paddle_2_left();
+#
+# If the second paddle hasn't reached the left-most possible position, move the paddle left
+# by 1 unit. (including actually drawing)
+# 
+# This function uses t0, t1, t9.
+move_paddle_2_left:
+	# PROLOGUE
+		nop
+	# BODY
+		# check if the paddle is touching the left wall, if so, terminate
+		lw $t0, SIDE_WALL_THICKNESS
+		lw $t1, PADDLE_2_X_LEFT
+		beq $t0, $t1, move_paddle_2_left_end
+
+		# Move the paddle to the left by 1 unit:
+
+		# Change the coords first:
+		la $t0, PADDLE_2_X_LEFT
+		addi $t1, $t1, -1		# t1 = PADDLE_2_X_LEFT - 1
+		sw $t1, 0($t0)			# PADDLE_2_X_LEFT = t1
+		
+		la $t0, PADDLE_2_X_RIGHT
+		lw $t1, PADDLE_2_X_RIGHT
+		addi $t1, $t1, -1		# t1 = PADDLE_2_X_RIGHT - 1
+		sw $t1, 0($t0)			# PADDLE_2_X_RIGHT = t1
+
+		# Then change the pixels:
+		# First, get the address of (PADDLE_2_X_LEFT, PADDLE_2_Y) with get_address_from_coords
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		lw $a0, PADDLE_2_X_LEFT
+		lw $a1, PADDLE_2_Y
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+		li $t9, 0x00ffffff
+		sw $t9, 0($v0)			# Draw the left pixel
+
+		# Then, get the address of (PADDLE_2_X_RIGHT + 1, PADDLE_2_Y)
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		lw $a0, PADDLE_2_X_RIGHT
+		addi $a0, $a0, 1
+		lw $a1, PADDLE_2_Y
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+		li $t9, 0x00000000
+		sw $t9, 0($v0)			# Erase the right pixel
+		
+	move_paddle_2_left_end:
+	# EPILOGUE
+		jr $ra
 # =======================================================================================
 
 
+# void move_paddle_2_right();
+#
+# If the second paddle hasn't reached the right-most possible position, move the paddle right
+# by 1 unit. (including actually drawing)
+# 
+# This function uses t0, t1, t9.
+move_paddle_2_right:
+	# PROLOGUE
+		nop
+	# BODY
+		# check if the paddle is touching the right wall, if so, terminate
+		lw $t0, SIDE_WALL_THICKNESS
+		li $t1, 63
+		sub $t0, $t1, $t0		# t0 = 63 - SIDE_WALL_THICKNESS
+		lw $t1, PADDLE_2_X_RIGHT	# t1 = PADDLE_2_X_RIGHT
+		beq $t0, $t1, move_paddle_2_right_end
 
+		# Move the paddle to the right by 1 unit:
+
+		# Change the coords first:		
+		la $t0, PADDLE_2_X_RIGHT
+		addi $t1, $t1, 1		# t1 = PADDLE_2_X_RIGHT + 1
+		sw $t1, 0($t0)			# PADDLE_2_X_RIGHT = t1
+
+		la $t0, PADDLE_2_X_LEFT
+		lw $t1, PADDLE_2_X_LEFT
+		addi $t1, $t1, 1		# t1 = PADDLE_2_X_LEFT + 1
+		sw $t1, 0($t0)			# PADDLE_2_X_LEFT = t1
+
+		# Then change the pixels:
+		# First, get the address of (PADDLE_2_X_RIGHT, PADDLE_2_Y) with get_address_from_coords
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		lw $a0, PADDLE_2_X_RIGHT
+		lw $a1, PADDLE_2_Y
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+		li $t9, 0x00ffffff
+		sw $t9, 0($v0)			# Draw the right pixel
+
+		# Then, get the address of (PADDLE_2_X_LEFT - 1, PADDLE_2_Y)
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+
+		lw $a0, PADDLE_2_X_LEFT
+		addi $a0, $a0, -1
+		lw $a1, PADDLE_2_Y
+		jal get_address_from_coords
+
+		lw $ra, 0($sp)
+		add $sp, $sp, 4
+		# Function call complete  ---------------------------------------------
+		li $t9, 0x00000000
+		sw $t9, 0($v0)			# Erase the left pixel
+
+	move_paddle_2_right_end:
+	# EPILOGUE
+		jr $ra
+# =======================================================================================
 
 # void draw_ball();
 # 
@@ -798,6 +1264,49 @@ draw_paddle:
 		sw $t9, 0($sp)
 
 		lw $t9, PADDLE_X_RIGHT
+		sw $t9, 8($sp)
+
+		jal draw_rectangle		# FUNCTION CALL
+
+		lw $ra, 0($sp)
+		addi $sp, $sp, 4		# restore $ra
+		# Function call complete ----------------------------------------------
+	# EPILOGUE:
+		jr $ra
+# =======================================================================================
+
+
+# void draw_paddle_2();
+# 
+# Draws the second paddle at it's position. 
+# The y-level of the paddle is constant, at PADDLE_2_Y.
+# The x-position of the paddle is stored in PADDLE_2_X_LEFT and PADDLE_2_X_RIGHT.
+# Note: PADDLE_2_Y is a constant. PADDLE_2_X_LEFT and PADDLE_2_X_RIGHT are dynamic.
+# This also means that the length and the y-level of the paddle is adjustable.
+# Also Note: Paddle's color is hardcoded to 0x00ffffff, same as the ball.
+# 
+# This function uses t9.
+draw_paddle_2:
+	# PROLOGUE:
+		nop
+	# BODY:
+		# Draw a line from (PADDLE_X_LEFT, PADDLE_Y) to (PADDLE_X_RIGHT, PADDLE_Y)
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)			# preserve $ra
+
+		li $a0, 0x00ffffff
+		
+		addi $sp, $sp, -16
+
+		lw $t9, PADDLE_2_Y
+		sw $t9, 4($sp)
+		sw $t9, 12($sp)
+
+		lw $t9, PADDLE_2_X_LEFT
+		sw $t9, 0($sp)
+
+		lw $t9, PADDLE_2_X_RIGHT
 		sw $t9, 8($sp)
 
 		jal draw_rectangle		# FUNCTION CALL
@@ -988,6 +1497,68 @@ draw_walls:
 
 	# EPILOGUE:
 		jr $ra
+# =======================================================================================
+
+# void draw_lives();
+#
+# Draws squares at the top of the screen, 3 if players have 3 lives, 2 if players have
+# 2, and 1 if players have 1
+draw_lives:
+	# PROLOGUE:
+		nop
+	# BODY:
+		# Function call: ------------------------------------------------------
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)			# Preserve $ra first, then pass parameters!
+
+		
+		# draw the three hearts (could have done a loop but its only 3 so didn't feel like it)
+		la $a0, LIVES
+		lw $a0, 0($a0)
+		li $t0, 2		# x_start
+		li $t1, 2		# y_start
+		li $t2, 4		# x_end
+		li $t3, 4		# y_end
+		addi $sp, $sp, -16
+		sw $t0, 0($sp) 
+		sw $t1, 4($sp)
+		sw $t2, 8($sp)
+		sw $t3, 12($sp)		
+		jal draw_rectangle		# FUNCTION CALL
+		
+		la $a0, LIVES
+		lw $a0, 4($a0)
+		li $t0, 6
+		li $t1, 2
+		li $t2, 8
+		li $t3, 4
+		addi $sp, $sp, -16
+		sw $t0, 0($sp)
+		sw $t1, 4($sp)
+		sw $t2, 8($sp)
+		sw $t3, 12($sp)		
+		jal draw_rectangle		# FUNCTION CALL
+		
+		la $a0, LIVES
+		lw $a0, 8($a0)
+		li $t0, 10
+		li $t1, 2
+		li $t2, 12
+		li $t3, 4
+		addi $sp, $sp, -16
+		sw $t0, 0($sp)
+		sw $t1, 4($sp)
+		sw $t2, 8($sp)
+		sw $t3, 12($sp)		
+		jal draw_rectangle		# FUNCTION CALL
+
+
+		lw $ra, 0($sp)
+		addi $sp, $sp, 4		# Restore $ra
+		# Function call complete ----------------------------------------------
+	# EPILOGUE:
+		jr $ra
+
 # =======================================================================================
 
 
