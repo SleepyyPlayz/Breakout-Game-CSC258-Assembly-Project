@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.8.28) (preloaded format=pdflatex 2022.9.20)  5 DEC 2022 19:41
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.8.28) (preloaded format=pdflatex 2022.9.20)  5 DEC 2022 19:55
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -278,28 +278,21 @@ Underfull \hbox (badness 10000) in paragraph at lines 50--52
 
  []
 
-
-Overfull \hbox (155.79182pt too wide) in paragraph at lines 52--53
-[]\OT1/cmr/m/n/10.95 The play-ers' lives, each time the play-ers lose, one of t
-he hearts turn black: [][]\OT1/cmtt/m/n/10.95 LIVES = [0x00FF0000, 0x00FF0000, 
-0x00FF0000] 
- []
-
-<project_report_2_data_hex.png, id=10, 751.30687pt x 88.07906pt>
+<project_report_2_data_hex.png, id=10, 740.7675pt x 146.79843pt>
 File: project_report_2_data_hex.png Graphic file (type png)
 <use project_report_2_data_hex.png>
 Package pdftex.def Info: project_report_2_data_hex.png  used on input line 59.
-(pdftex.def)             Requested size: 375.65251pt x 44.03941pt.
-<project_report_2_data_dec.png, id=12, 750.55406pt x 83.5622pt>
+(pdftex.def)             Requested size: 370.38284pt x 73.39903pt.
+<project_report_2_data_dec.png, id=12, 749.80125pt x 144.54pt>
 File: project_report_2_data_dec.png Graphic file (type png)
 <use project_report_2_data_dec.png>
 Package pdftex.def Info: project_report_2_data_dec.png  used on input line 63.
-(pdftex.def)             Requested size: 375.27611pt x 41.78099pt.
-<project_report_2_scene.png, id=13, 197.23688pt x 205.5178pt>
+(pdftex.def)             Requested size: 374.8997pt x 72.2698pt.
+<project_report_2_scene.png, id=13, 196.48407pt x 193.47281pt>
 File: project_report_2_scene.png Graphic file (type png)
 <use project_report_2_scene.png>
 Package pdftex.def Info: project_report_2_scene.png  used on input line 71.
-(pdftex.def)             Requested size: 177.51152pt x 184.96431pt.
+(pdftex.def)             Requested size: 176.83401pt x 174.12392pt.
 
 Overfull \hbox (9.85002pt too wide) in paragraph at lines 76--77
 [][]\OT1/cmtt/m/n/10.95 (BALL_X + 1, BALL_Y)[]\OT1/cmr/m/n/10.95 , [][]\OT1/cmt
@@ -331,7 +324,7 @@ TeX/fonts/type1/public/amsfonts/cm/cmr10.pfb><C:/Users/Yahya/AppData/Local/Prog
 rams/MiKTeX/fonts/type1/public/amsfonts/cm/cmr12.pfb><C:/Users/Yahya/AppData/Lo
 cal/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr17.pfb><C:/Users/Yahya/Ap
 pData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmtt10.pfb>
-Output written on project_report_2.pdf (3 pages, 105004 bytes).
+Output written on project_report_2.pdf (3 pages, 110460 bytes).
 PDF statistics:
  44 PDF objects out of 1000 (max. 8388607)
  0 named destinations out of 1000 (max. 500000)
