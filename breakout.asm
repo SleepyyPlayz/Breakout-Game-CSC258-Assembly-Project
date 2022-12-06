@@ -135,7 +135,9 @@ main:
 		jal draw_bricks
     	# Step 3: Draw the paddle in the initial position
 	# Step 4: Draw the ball in the initial position
-	# Step 5: Draw lives		
+	# Step 5: Draw lives and initialize score
+		la $t0, SCORE
+		sw $zero, 0($t0)		
 		jal reinitialize
 	
 	
@@ -159,7 +161,7 @@ game_loop:
 		beq $t9, 114, respond_to_r	# key is r: reset game
 		j end_key_responding		# key is invalid, continue as usual
 		
-		respond_to_q:  # Quit game
+		respond_to_q:  # Exit the game shamefully
 			li $v0, 10
 			syscall
 		respond_to_a:  # Move paddle left by 1 unit (if not at leftmost edge)
@@ -387,15 +389,31 @@ move_ball_right:
 
 # void game_over();
 # 
-# Game over! Currently only stops the game from running.
+# Game over! Play sound, screen turns to black, waiting on reset
 game_over:
 	# sound stuff
 	li $a0, 63
 	li $a1, 1000
 	li $a2, 120
 	li $a3, 100
-	li $v0, 33
+	li $v0, 31
 	syscall
+	
+	# black screen
+	li $a0, 0
+	addi $sp, $sp, -16
+	sw $zero, 0($sp)
+	sw $zero, 4($sp)
+	li $t0, 63
+	sw $t0, 8($sp)
+	sw $t0, 12($sp)
+	jal draw_rectangle
+	# eMARS stuff
+	lw   $t8, ADDR_DSPL
+	li   $t9, 0
+	sw   $t9, 0($t8)
+	
+	
 	wait_for_reset:
 	lw $t0, ADDR_KBRD		# t0 = address of the keyboard
 	lw $t9, 0($t0)			# bool t9 = keyboard.isPressed();

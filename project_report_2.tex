@@ -42,14 +42,14 @@ Note: All data stored below are of data type ``word''.
 \item The y-coordinate of the paddle (constant): \verb+PADDLE_2_Y = 58+
 \item The x-coordinates of the second paddle, these are variable, one stores the x-coordinate of the leftmost pixel of the paddle, one stores the rightmost. This enables us to adjust the length of the paddle, and makes it easier for us to update its position:\\ \verb+PADDLE_2_X_LEFT = 26+ ; \verb+PADDLE_2_X_RIGHT = 36+
 \\
-\item The position of the ball (this is a variable): \verb+BALL_X = 31+ ; \verb+BALL_Y = 58+
+\item The position of the ball (this is a variable): \verb+BALL_X = 31+ ; \verb+BALL_Y = 56+
 \item The movement vectors for the ball (each cycle the balls position are calculated as such: \verb%BALL_X = BALL_X + VEC_X% ; \verb%BALL_Y = BALL_Y + VEC_Y% ). For ease of calculation, \verb+VEC_X+ and \verb+VEC_Y+ can only be either 1 or -1:\\ \verb+VEC_X = 1+ ; \verb+VEC_Y = 1+
 \\
 \item The width of a single brick (constant): \verb+BRICK_WIDTH = 6+
 \\
 \item The players' score, each time a brick is hit the score increments by 1 (variable): \verb+SCORE = 0+
 \\
-\item The players' lives, each time the players lose, one of the hearts turn black: \verb+LIVES = [0x00FF0000, 0x00FF0000, 0x00FF0000]+
+\item The players' lives, each time the players lose, one of the hearts turn black:\\ \verb+LIVES = [0x00FF0000, 0x00FF0000, 0x00FF0000]+
 	
 \end{enumerate}
 
