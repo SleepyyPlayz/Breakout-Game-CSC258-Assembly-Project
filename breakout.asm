@@ -180,6 +180,11 @@ game_loop:
 			jal pause
 			j end_key_responding
 		respond_to_r: # Reset game
+			la $t0, LIVES
+			li $t1, 0x00FF0000
+			sw $t1, 0($t0)
+			sw $t1, 4($t0)
+			sw $t1, 8($t0)
 			b main
 		end_key_responding:
 			nop
