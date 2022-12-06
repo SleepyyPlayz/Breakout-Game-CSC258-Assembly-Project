@@ -73,14 +73,6 @@ PADDLE_Y:
 PADDLE_2_Y:
 	.word 58
 
-# The movement vector for the ball.
-# For each loop, BALL_X += VEC_X and BALL_Y += VEC_Y
-# As of now, VEC_X and VEC_Y can only be 1 or -1.
-VEC_X:
-	.word 1
-VEC_Y:
-	.word 1
-
 # The width of a single brick: (hardcoded)
 # Note that a row of bricks has width of 60 units.
 BRICK_WIDTH:
@@ -90,12 +82,20 @@ BRICK_WIDTH:
 # Mutable Data
 ##############################################################################
 
+# The movement vector for the ball.
+# For each loop, BALL_X += VEC_X and BALL_Y += VEC_Y
+# As of now, VEC_X and VEC_Y can only be 1 or -1.
+VEC_X:
+	.word 1
+VEC_Y:
+	.word 1
+
 # The position of the ball (1 unit by 1 unit). Initial value is initial position.
 # These 2 variables are dynamic.
 BALL_X:
 	.word 31
 BALL_Y: 
-	.word 57
+	.word 56
 
 # X position of the paddle, this is dynamic, 2 variables helps with
 # collision detection, this also means the length of the paddle is adjustable
@@ -134,17 +134,10 @@ main:
 	# Step 2: Draw the bricks (a few colored rows)
 		jal draw_bricks
     	# Step 3: Draw the paddle in the initial position
-		jal draw_paddle
-		jal draw_paddle_2
 	# Step 4: Draw the ball in the initial position
-		jal draw_ball
-	# Step 5: Draw lives
-		jal draw_lives
-		# eMARS stuff
-		lw   $t8, ADDR_DSPL
-		li   $t9, 0x00888888
-		sw   $t9, 0($t8)
-		b pause
+	# Step 5: Draw lives		
+		jal reinitialize
+	
 	
 
 game_loop:
@@ -163,6 +156,7 @@ game_loop:
 		beq $t9, 44, respond_to_comma	# key is ,: move paddle_2 left by 1 unit
 		beq $t9, 46, respond_to_period	# key is .: move paddle_2 right by 1 unit
 		beq $t9, 112, respond_to_p	# key is p: pause game
+		beq $t9, 114, respond_to_r	# key is r: reset game
 		j end_key_responding		# key is invalid, continue as usual
 		
 		respond_to_q:  # Quit game
@@ -183,6 +177,8 @@ game_loop:
 		respond_to_p: # Pause game
 			jal pause
 			j end_key_responding
+		respond_to_r: # Reset game
+			b main
 		end_key_responding:
 			nop
 	no_keyboard_input:				# no key pressed, continue as usual
@@ -232,11 +228,67 @@ pause:
 	pause_input:
 	lw $t9, 4($t0)			# t9 = ASCII(keyboard.keyPressed());
 	beq $t9, 112, unpause		# key is p: unpause game
+	beq $t9, 113, respond_to_q	# key is q: quit game
+	beq $t9, 114, reset		# key is r: reset game
+
 	
 	no_pause_input:
 	b pause
 	
 	unpause:
+	b game_loop
+	
+# pauses the game but allows the players to move their paddles and the ball horizontally
+launch_pause:
+	lw $t0, ADDR_KBRD			# t0 = address of the keyboard
+	lw $t9, 0($t0)				# bool t9 = keyboard.isPressed();
+	beq $t9, 1, launch_input		# if (t9 == 1): goto launch_input
+	j no_launch_input			# else: goto no_launch_input
+	
+	launch_input:
+	lw $t9, 4($t0)				# t9 = ASCII(keyboard.keyPressed());
+	beq $t9, 112, launch			# key is p: unpause game
+	beq $t9, 97, launch_pause_left		# key is a: move paddle and ball left by 1 unit
+	beq $t9, 100, launch_pause_right	# key is d: move paddle and ball right by 1 unit
+	beq $t9, 44, launch_pause_left_2	# key is ,: move paddle_2 and ball left by 1 unit
+	beq $t9, 46, launch_pause_right_2	# key is .: move paddle_2 and ball right by 1 unit
+	
+	no_launch_input:
+	b launch_pause
+	
+	launch_pause_left:
+	jal move_ball_left
+	jal move_paddle_left	
+	b launch_repause
+	
+	launch_pause_right:
+	jal move_ball_right
+	jal move_paddle_right	
+	b launch_repause
+	
+	launch_pause_left_2:
+	jal move_ball_left
+	jal move_paddle_2_left	
+	b launch_repause
+	
+	launch_pause_right_2:
+	jal move_ball_right
+	jal move_paddle_2_right	
+	b launch_repause
+	
+	launch_repause:
+	jal erase_ball_paddles
+	jal draw_paddle
+	jal draw_paddle_2
+	jal draw_ball
+	# eMARS stuff
+	lw   $t8, ADDR_DSPL
+	li   $t9, 0x00888888
+	sw   $t9, 0($t8)
+	b launch_pause
+	
+	
+	launch:
 	b game_loop
 # =======================================================================================
 
@@ -300,6 +352,36 @@ redraw_ball:
 
 	# EPILOGUE
 		jr $ra
+		
+# move_ball_left();
+# changes the ball to the left by 1 unless it is touching the wall (DOES NOT DRAW)
+move_ball_left:
+	la $t0, BALL_X
+	lw $t1, 0($t0)
+	la $t2, SIDE_WALL_THICKNESS
+	lw $t2, 0($t2) # find where the wall is
+	beq $t1, $t2, move_ball_left_end # don't subtract 1 if you are already at the edge
+	addi $t1, $t1, -1
+	sw $t1, 0($t0)
+	move_ball_left_end:
+	jr $ra
+
+# move_ball_right();
+# changes the ball to the right by 1 unless it is touching the wall (DOES NOT DRAW)
+move_ball_right:
+	la $t0, BALL_X
+	lw $t1, 0($t0)
+	la $t2, SIDE_WALL_THICKNESS
+	lw $t2, 0($t2)
+	li $t3, 63
+	sub $t2, $t3, $t2 # find where the wall is
+	beq $t1, $t2, move_ball_right_end # don't add 1 if you are already at the edge
+	addi $t1, $t1, 1
+	sw $t1, 0($t0)
+	move_ball_right_end:
+	jr $ra
+	
+
 # =======================================================================================
 
 
@@ -314,9 +396,21 @@ game_over:
 	li $a3, 100
 	li $v0, 33
 	syscall
-	# exit shamefully
-	li $v0, 10
-	syscall
+	wait_for_reset:
+	lw $t0, ADDR_KBRD		# t0 = address of the keyboard
+	lw $t9, 0($t0)			# bool t9 = keyboard.isPressed();
+	beq $t9, 1, reset_input		# if (t9 == 1): goto reset_input
+	j no_reset_input		# else: goto no_reset_input
+	
+	reset_input:
+	lw $t9, 4($t0)			# t9 = ASCII(keyboard.keyPressed());
+	beq $t9, 114, reset		# key is r: reset game
+	
+	no_reset_input:
+	b wait_for_reset
+	
+	reset:
+	b main
 	
 	
 # void reduce_hp();
@@ -344,7 +438,7 @@ reduce_hp:
 		sw $t1, 0($t0)
 		
 		la $t0, BALL_Y
-		li $t1, 57
+		li $t1, 56
 		sw $t1, 0($t0)
 		
 		la $t0, PADDLE_X_LEFT
@@ -372,7 +466,7 @@ reduce_hp:
 		lw   $t8, ADDR_DSPL
 		li   $t9, 0x00888888
 		sw   $t9, 0($t8)
-		b pause # prepare launch
+		b launch_pause # prepare launch
 	third_death: # change the color of the 1st heart to black, game over
 		li $t1, 0
 		sw $t1, 0($t0)
